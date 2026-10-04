@@ -1,0 +1,3 @@
+import type {Range} from './domain';
+export function layoutGeometry(scope:Range,width:number,stride:number,fixed:boolean){const columns=fixed?160:Math.max(1,Math.floor(width/stride));const offset=fixed?Math.floor(scope.start/columns)*columns:scope.start;return {columns,offset,width:columns*stride,height:Math.ceil((scope.end-offset+1)/columns)*stride};}
+export function hitTest(x:number,y:number,scope:Range,columns:number,offset:number,stride:number){if(x<0||y<0||x>=columns*stride||x%stride>=stride-1||y%stride>=stride-1)return null;const index=offset+Math.floor(y/stride)*columns+Math.floor(x/stride);return index>=scope.start&&index<=scope.end?index:null;}
