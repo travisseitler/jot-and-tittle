@@ -27,7 +27,7 @@ Host the contents of `dist/` on any static web host, or serve that directory loc
 - Validated book/chapter/verse ranges, abbreviations, cross-chapter and cross-book ranges, multiple semicolon-separated ranges. Overlaps count once per session.
 - Date-stamped readings with notes; IndexedDB persistence and atomic edits/deletions.
 - Canvas continuous flow and a stable 160-column canonical grid; scroll and cell-size zoom; exact hover/tap details and book highlighting.
-- Book, chapter, and arbitrary continuous passage scope; recency/frequency metrics.
+- Book, chapter, and arbitrary continuous passage scope; combined, recency, and frequency metrics.
 - Keyboard map navigation, semantic summaries, dialog focus trapping, and responsive layouts.
 - Reading history, search, book statistics, most frequently revisited verses.
 - Explicitly separated read-only sample dataset; personal history starts empty.
@@ -37,7 +37,7 @@ Host the contents of `dist/` on any static web host, or serve that directory loc
 
 `src/domain.ts` contains Scripture identity, parser, normalized ranges, derived statistics, metric buckets, and interchange validation. Verse indices are zero-based internally; exported identities are OSIS strings. Canon and versification are data identities, not implicit row counts. `src/storage.ts` defines the repository boundary and IndexedDB schema version 1. `src/Heatmap.tsx` uses a base canvas and separate hover overlay; coordinate hit testing is mathematical. `src/main.tsx` contains the application workflows. Metadata is `src/canon.json`; cell styling is independent of readings.
 
-Each session stores UUID, date, original input, notes, creation/update timestamps, and merged inclusive verse ranges. Statistics are rebuilt from authoritative sessions. Book/chapter boundaries do not add spacing to the heatmap. Fixed-grid scopes retain canonical column positions. Recency bins: never, over a year, 3–12 months, 1–3 months, 7–30 days, 1–7 days, under 24 hours. Frequency bins: 0, 1, 2–4, 5–9, 10–24, 25–49, 50+.
+Each session stores UUID, date, original input, notes, creation/update timestamps, and merged inclusive verse ranges. Statistics are rebuilt from authoritative sessions. Book/chapter boundaries do not add spacing to the heatmap. Fixed-grid scopes retain canonical column positions. The default Combined view independently encodes recency as brown-to-green hue and frequency as pale-to-dark lightness, with an expandable two-dimensional legend. Recency and Frequency remain second and third views. Unrecorded verses stay neutral gray. Recency bins: never, over a year, 3–12 months, 1–3 months, 7–30 days, 1–7 days, under 24 hours. Frequency bins: 0, 1, 2–4, 5–9, 10–24, 25–49, 50+.
 
 ## Data portability
 

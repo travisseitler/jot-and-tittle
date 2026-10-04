@@ -31,3 +31,16 @@ export function bucket(s:Stats,metric:string,now=Date.now()){if(!s.count)return 
 export function serialize(readings:Reading[]){return {format:'jot-and-tittle',version:1,exportedAt:new Date().toISOString(),versification:VERSIFICATION,readings:readings.map(r=>({...r,ranges:r.ranges.map(x=>({start:verses[x.start].osisId,end:verses[x.end].osisId}))}))};}
 export function deserialize(input:unknown):Reading[]{const x=input as ReturnType<typeof serialize>;if(!x||x.format!=='jot-and-tittle'||x.version!==1||x.versification!==VERSIFICATION||!Array.isArray(x.readings))throw new Error('Expected a Jot & Tittle v1 export using protestant-en versification.');const lookup=new Map(verses.map(v=>[v.osisId,v.id]));const seen=new Set<string>();return x.readings.map(r=>{if(typeof r.id!=='string'||!r.id||seen.has(r.id))throw new Error('Missing or duplicate reading ID.');seen.add(r.id);for(const d of [r.startedAt,r.createdAt,r.updatedAt])if(typeof d!=='string'||!Number.isFinite(Date.parse(d)))throw new Error('A reading contains an invalid date.');if(typeof r.originalInput!=='string'||typeof r.notes!=='string'||!Array.isArray(r.ranges)||!r.ranges.length)throw new Error('A reading is missing its passage or notes.');return {id:r.id,originalInput:r.originalInput,notes:r.notes,startedAt:new Date(r.startedAt).toISOString(),createdAt:new Date(r.createdAt).toISOString(),updatedAt:new Date(r.updatedAt).toISOString(),ranges:mergeRanges(r.ranges.map(q=>{const start=lookup.get(q.start),end=lookup.get(q.end);if(start===undefined||end===undefined||start>end)throw new Error('A reading contains an invalid verse range.');return {start,end};}))};});}
 export function sampleReadings():Reading[]{const passages=['Genesis 1-3','Psalm 23','Romans 8','John 15:1-17','Matthew 5-7','Philippians 2','Psalm 139','Ephesians 4-6','1 Corinthians 12-14','Jonah','John 1','Isaiah 40','Psalm 46','Luke 15','Revelation 21-22','Proverbs 3','James 1-3','Hebrews 11','Colossians 3','Mark 4','Genesis 12-15','Exodus 1-4','Deuteronomy 6','Acts 1-4'];return Array.from({length:80},(_,i)=>{const date=new Date(Date.now()-((i*37)%390)*86400000).toISOString();const passage=passages[i%passages.length];return {id:`sample-${i}`,originalInput:passage,startedAt:date,createdAt:date,updatedAt:date,notes:'Sample reading',ranges:parsePassage(passage)};});}
+
+// Recency changes hue (dry brown to fresh green); frequency changes lightness.
+// Keep the two channels independent, with neutral gray reserved for unrecorded verses.
+export const recencyLabels=['Over a year','3–12 months','1–3 months','7–30 days','1–7 days','Within 24 hours'];
+export const frequencyLabels=['1 reading','2–4 readings','5–9 readings','10–24 readings','25–49 readings','50+ readings'];
+const leafHues=[28,43,63,82,102,119];
+const leafLightness=[80,69,58,48,38,29];
+export const combinedPalette=leafLightness.map((lightness,frequency)=>leafHues.map((hue,recency)=>`hsl(${hue} ${26+recency*2+frequency}% ${lightness}%)`));
+export function metricColor(s:Stats,metric:string,now=Date.now()):string{
+ if(!s.count)return palette[0];
+ if(metric==='combined')return combinedPalette[bucket(s,'frequency',now)-1][bucket(s,'recency',now)-1];
+ return palette[bucket(s,metric,now)];
+}
