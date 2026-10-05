@@ -1,0 +1,15 @@
+title: Jot & Tittle
+description: A quiet place to see your journey through Scripture. A local-first, verse-level Bible reading journal.
+url: https://travisseitler.github.io
+baseurl: /jot-and-tittle
+repository_url: https://github.com/travisseitler/jot-and-tittle
+# Set to a hosted app URL to replace the getting-started link with “Open the app”.
+app_url: ""
+markdown: kramdown
+permalink: pretty
+exclude: [Gemfile, Gemfile.lock, README.md]
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: page

@@ -447,6 +447,86 @@ export const repository: ReadingRepository = {
     }, true);
   },
 
+  async copyReading(id, expectedUpdatedAt, destination, copyId) {
+    return withDb(async (db) => {
+      const tx = db.transaction(
+        ["readings", "journals", "settings"],
+        "readwrite",
+      );
+      const store = tx.objectStore("readings");
+      const source = (await req(store.get(id))) as JournalReading | undefined;
+      if (!source || source.updatedAt !== expectedUpdatedAt) {
+        tx.abort();
+        throw new ConflictError(
+          source ? "reading-updated" : "reading-deleted",
+          id,
+          source,
+        );
+      }
+      const target = await req(tx.objectStore("journals").get(destination));
+      if (!target) {
+        tx.abort();
+        throw new ConflictError("journal-missing", destination);
+      }
+      if (source.journalId === destination) {
+        tx.abort();
+        throw new Error(
+          "Choose another journal; same-journal copies are disabled.",
+        );
+      }
+      const existing = await req(store.get(copyId));
+      if (existing) {
+        tx.abort();
+        throw new ConflictError("reading-exists", copyId, existing);
+      }
+      const now = new Date().toISOString();
+      store.add({
+        ...source,
+        id: copyId,
+        encounterId: source.encounterId || source.id,
+        journalId: destination,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await commit(tx);
+      return readState(db);
+    }, true);
+  },
+
+  async moveReading(id, expectedUpdatedAt, destination) {
+    return withDb(async (db) => {
+      const tx = db.transaction(
+        ["readings", "journals", "settings"],
+        "readwrite",
+      );
+      const store = tx.objectStore("readings");
+      const stored = (await req(store.get(id))) as JournalReading | undefined;
+      if (!stored || stored.updatedAt !== expectedUpdatedAt) {
+        tx.abort();
+        throw new ConflictError(
+          stored ? "reading-updated" : "reading-deleted",
+          id,
+          stored,
+        );
+      }
+      const target = await req(tx.objectStore("journals").get(destination));
+      if (!target) {
+        tx.abort();
+        throw new ConflictError("journal-missing", destination);
+      }
+      if (stored.journalId !== destination)
+        store.put({
+          ...stored,
+          journalId: destination,
+          updatedAt: new Date(
+            Math.max(Date.now(), Date.parse(stored.updatedAt) + 1),
+          ).toISOString(),
+        });
+      await commit(tx);
+      return readState(db);
+    }, true);
+  },
+
   async deleteReading(id, expectedUpdatedAt) {
     return withDb(async (db) => {
       const tx = db.transaction(
