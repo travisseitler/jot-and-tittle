@@ -13,6 +13,8 @@ export interface JournalState {
   journals: Journal[];
   readings: JournalReading[];
   activeJournalId: string;
+  backup?: { initiatedAt: string; fingerprint: string };
+  hasUnexportedChanges?: boolean;
 }
 export interface JournalImport {
   journals: Journal[];

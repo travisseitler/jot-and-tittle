@@ -44,7 +44,6 @@ import {
   defaultJournal,
   journalReadings,
   validateJournalName,
-  serializeJournals,
   deserializeJournals,
   mergeJournalImport,
   describeConflict,
@@ -58,6 +57,7 @@ import {
   ConflictError,
   repository,
   storageChannel,
+  storageClientId,
   type UndoOpportunity,
 } from "./storage";
 import { Heatmap } from "./Heatmap";
@@ -112,6 +112,9 @@ function App() {
   const [undos, setUndos] = useState<
     (UndoOpportunity & { label: string; error?: string })[]
   >([]);
+  const [backup, setBackup] = useState<JournalState["backup"]>();
+  const [hasUnexportedChanges, setHasUnexportedChanges] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [undoNow, setUndoNow] = useState(Date.now());
   useEffect(() => {
     if (!undos.length) return;
@@ -163,8 +166,9 @@ function App() {
     ? mergeJournalImport(currentState, importPreview)
     : null;
   const fileRef = useRef<HTMLInputElement>(null);
-  const suppressBroadcast = useRef(0);
   function applyState(state: JournalState) {
+    setBackup(state.backup);
+    setHasUnexportedChanges(state.hasUnexportedChanges ?? true);
     setReadings(state.readings);
     setJournals(state.journals);
     setActiveJournalId(state.activeJournalId);
@@ -189,7 +193,6 @@ function App() {
     if (saving || !storageReady) return false;
     setSaving(true);
     try {
-      suppressBroadcast.current = Date.now() + 250;
       const result = await work();
       onOk(result);
       return true;
@@ -228,8 +231,8 @@ function App() {
   useEffect(() => {
     const channel = storageChannel();
     if (!channel) return;
-    channel.onmessage = () => {
-      if (Date.now() < suppressBroadcast.current) return;
+    channel.onmessage = (event) => {
+      if (event.data?.source === storageClientId) return;
       repository
         .load()
         .then((state) => {
@@ -352,7 +355,6 @@ function App() {
     if (saving || !storageReady || id === activeJournalId) return;
     setSaving(true);
     try {
-      suppressBroadcast.current = Date.now() + 250;
       await repository.selectJournal(id);
       setActiveJournalId(id);
       setSample(false);
@@ -510,18 +512,33 @@ function App() {
     }
     setConflict(null);
   }
-  function exportData() {
-    const blob = new Blob(
-      [JSON.stringify(serializeJournals(journals, allReadings), null, 2)],
-      { type: "application/json" },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `jot-and-tittle-${dateLocal()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setToast("All journals and readings have been exported.");
+  async function exportData() {
+    if (!storageReady || exporting) return;
+    setExporting(true);
+    try {
+      applyState(
+        await repository.exportAll((json) => {
+          const url = URL.createObjectURL(
+            new Blob([json], { type: "application/json" }),
+          );
+          try {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `jot-and-tittle-${dateLocal()}.json`;
+            a.click();
+          } finally {
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+        }),
+      );
+      setToast("Backup download initiated. Check that the file was saved.");
+    } catch {
+      setError(
+        "Could not complete the backup or record its status. Please try exporting again.",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
   async function importFile(file?: File) {
     if (!file) return;
@@ -1355,15 +1372,33 @@ function App() {
               <div className="data-grid">
                 <section className="panel data-card">
                   <Download size={25} />
-                  <h2>Take your history with you</h2>
+                  <h2>Personal-data backup</h2>
+                  <p role="status" aria-label="Backup status">
+                    {backup
+                      ? `Most recent export initiated: ${new Date(backup.initiatedAt).toLocaleString()}.`
+                      : "No personal-data export initiated yet."}{" "}
+                    {hasUnexportedChanges
+                      ? "You have unexported changes."
+                      : "All current journals and readings match that export."}
+                  </p>
                   <p>
                     Download all {allReadings.length} reading sessions across{" "}
                     {journals.length} journals as a readable JSON file,
                     including journal names, dates, passages, and notes.
                   </p>
-                  <button className="primary" onClick={exportData}>
+                  <button
+                    className="primary"
+                    onClick={exportData}
+                    disabled={!storageReady || exporting}
+                  >
                     Export all journals <Download size={15} />
                   </button>
+                  <p>
+                    Initiating a download does not confirm the file was
+                    successfully saved. Check your downloads and keep a copy
+                    somewhere safe. Browser-local storage can be cleared or
+                    evicted.
+                  </p>
                 </section>
                 <section className="panel data-card">
                   <Upload size={25} />
@@ -1418,6 +1453,7 @@ function App() {
               <section className="panel">
                 <h2>Run Jot &amp; Tittle yourself</h2>
                 <p className="muted" style={{ margin: "12px 0 18px" }}>
+                  This source-code download does not back up your personal data.
                   Download the complete React + TypeScript source, tests, and
                   setup instructions. Run it locally or host the static build on
                   your own website.

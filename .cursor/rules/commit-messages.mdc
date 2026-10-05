@@ -1,0 +1,39 @@
+---
+description: Require Conventional Commits matching this repository's commit history
+alwaysApply: true
+---
+
+# Commit messages
+
+ALWAYS use a multiline Conventional Commit message for every commit, without exception.
+Include a subject, a blank line, and a meaningful body describing the changes.
+Before committing, inspect recent commit subjects and follow the established pattern:
+
+- Format: `type(scope): imperative summary`, or `type: imperative summary` when no scope is useful.
+- Use a lowercase type that describes the change: `feat` for new behavior, `fix` for bug fixes, `test` for test coverage, `ci` for CI changes, and `chore` for maintenance.
+- Use a concise lowercase area scope when useful, following existing scopes such as `readings`, `storage`, and `tooling`.
+- Write a concise lowercase imperative summary, without a trailing period.
+- Match local implementation commits by omitting an issue-number suffix. Issue references may go in the body; issue-number suffixes belong to the merge commit pattern.
+- Use short imperative bullets or a concise paragraph in the body to explain the behavior and relevant validation.
+- For issue work, end with a blank line and `Fixes #<issue-number>`.
+- Apply this rule to new commits, amendments, and merge or squash messages under your control.
+
+Examples from this repository:
+
+- `feat(readings): add undo window for deletion and journal clearing`
+- `fix(storage): prevent data loss from concurrent tab updates`
+- `test: add end-to-end browser coverage for core workflows`
+- `chore(tooling): add Prettier formatting and pre-commit hook`
+
+Required multiline structure:
+
+```text
+feat(storage): show backup status and simplify manual exports
+
+- Track the exported snapshot and persist backup status across tabs
+- Keep concurrent changes marked as unexported
+- Explain download and browser-storage limitations
+- Cover persistence, concurrent changes, and failed exports
+
+Fixes #11
+```
