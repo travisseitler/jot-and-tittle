@@ -1,4 +1,10 @@
-import { serialize, deserialize, VERSIFICATION, type Reading } from "./domain";
+import {
+  serialize,
+  deserialize,
+  migrateReadingDate,
+  VERSIFICATION,
+  type Reading,
+} from "./domain";
 export const DEFAULT_JOURNAL_ID = "journal-default";
 export interface Journal {
   id: string;
@@ -30,7 +36,10 @@ export function defaultJournal(now = new Date().toISOString()): Journal {
   };
 }
 export function migrateLegacyReadings(readings: Reading[]): JournalReading[] {
-  return readings.map((r) => ({ ...r, journalId: DEFAULT_JOURNAL_ID }));
+  return readings.map((r) => ({
+    ...migrateReadingDate(r),
+    journalId: DEFAULT_JOURNAL_ID,
+  }));
 }
 export function journalReadings(readings: JournalReading[], id: string) {
   return readings.filter((r) => r.journalId === id);
@@ -61,13 +70,15 @@ export function serializeJournals(
   readings: JournalReading[],
 ) {
   return {
-    ...serialize(readings),
-    version: 2,
+    ...serialize(readings.map(migrateReadingDate)),
+    version: 3,
     journals: journals.map((j) => ({ ...j })),
-    readings: serialize(readings).readings.map((r, i) => ({
-      ...r,
-      journalId: readings[i].journalId,
-    })),
+    readings: serialize(readings.map(migrateReadingDate)).readings.map(
+      (r, i) => ({
+        ...r,
+        journalId: readings[i].journalId,
+      }),
+    ),
   };
 }
 export function deserializeJournals(input: unknown): JournalImport {
@@ -75,19 +86,24 @@ export function deserializeJournals(input: unknown): JournalImport {
   if (x?.version === 1)
     return {
       journals: [defaultJournal()],
-      readings: migrateLegacyReadings(deserialize(input)),
+      readings: migrateLegacyReadings(
+        deserialize(input).map((r, i) => ({
+          ...r,
+          startedAt: x.readings[i].startedAt,
+        })),
+      ),
       legacy: true,
     };
   if (
     !x ||
     x.format !== "jot-and-tittle" ||
-    x.version !== 2 ||
+    (x.version !== 2 && x.version !== 3) ||
     x.versification !== VERSIFICATION ||
     !Array.isArray(x.journals) ||
     !x.journals.length
   )
     throw new Error(
-      "Expected a Jot & Tittle v1 or v2 export using protestant-en versification.",
+      "Expected a Jot & Tittle v1, v2 or v3 export using protestant-en versification.",
     );
   const journals: Journal[] = [];
   for (const j of x.journals) {
@@ -113,7 +129,14 @@ export function deserializeJournals(input: unknown): JournalImport {
     const journalId = x.readings[i].journalId;
     if (!journals.some((j) => j.id === journalId))
       throw new Error("A reading refers to a journal missing from this file.");
-    return { ...r, journalId };
+    if (x.version === 3 && !r.datePrecision)
+      throw new Error("Missing date precision.");
+    return {
+      ...(x.version === 2
+        ? migrateReadingDate({ ...r, startedAt: x.readings[i].startedAt })
+        : r),
+      journalId,
+    };
   });
   return { journals, readings, legacy: false };
 }
@@ -164,7 +187,9 @@ export function readingChanged(
     a.journalId !== b.journalId ||
     a.originalInput !== b.originalInput ||
     a.notes !== b.notes ||
-    a.startedAt !== b.startedAt
+    a.startedAt !== b.startedAt ||
+    a.datePrecision !== b.datePrecision ||
+    a.legacyStartedAt !== b.legacyStartedAt
   );
 }
 export function describeConflict(kind: string) {

@@ -23,6 +23,7 @@ const reading = (
   overrides: Partial<JournalReading> = {},
 ): JournalReading => ({
   id,
+  datePrecision: "instant",
   startedAt: timestamp,
   createdAt: timestamp,
   updatedAt: timestamp,

@@ -29,6 +29,11 @@ import {
   Clock3,
 } from "lucide-react";
 import {
+  localDate,
+  readingDate,
+  formatReadingDate,
+  validCalendarDate,
+  compareReadingDates,
   books,
   verses,
   parsePassage,
@@ -62,14 +67,8 @@ import {
 } from "./storage";
 import { Heatmap } from "./Heatmap";
 import "./styles.css";
-const dateLocal = (date = new Date()) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-const formatDate = (d: string) =>
-  new Date(d).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+const dateLocal = localDate;
+const formatDate = formatReadingDate;
 const pretty = (n: number) => n.toLocaleString();
 type ReadingConflict = {
   kind: string;
@@ -299,7 +298,10 @@ function App() {
     active = sample ? demo : readings,
     stats = useMemo(() => deriveStats(active), [active]),
     sorted = useMemo(
-      () => [...active].sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+      () =>
+        [...active].sort((a, b) =>
+          compareReadingDates(b.startedAt, a.startedAt),
+        ),
       [active],
     );
   const scope: Range =
@@ -333,17 +335,23 @@ function App() {
   }, [input]);
   function buildDraft(id?: string): Reading | null {
     if (!parsed.ranges.length) return null;
-    const selectedDate = new Date(`${date}T12:00:00`);
-    if (!date || !Number.isFinite(selectedDate.getTime()) || date > dateLocal())
-      return null;
+
+    if (!date || !validCalendarDate(date) || date > dateLocal()) return null;
     const now = new Date().toISOString();
     return {
       id: id || editing?.id || crypto.randomUUID(),
       journalId: editing?.journalId || activeJournalId,
       startedAt:
-        editing && dateLocal(new Date(editing.startedAt)) === date
+        editing && readingDate(editing.startedAt) === date
           ? editing.startedAt
-          : selectedDate.toISOString(),
+          : date,
+      datePrecision:
+        editing && readingDate(editing.startedAt) === date
+          ? editing.datePrecision
+          : "date",
+      ...(editing?.legacyStartedAt
+        ? { legacyStartedAt: editing.legacyStartedAt }
+        : {}),
       createdAt: editing?.createdAt || now,
       updatedAt: now,
       originalInput: input.trim(),
@@ -417,7 +425,7 @@ function App() {
     setEditingUpdatedAt(r?.updatedAt || null);
     setConflict(null);
     setInput(r?.originalInput || prefill);
-    setDate(r ? dateLocal(new Date(r.startedAt)) : dateLocal());
+    setDate(r ? readingDate(r.startedAt) : dateLocal());
     setNotes(r?.notes || "");
     setFormError("");
     setModal(true);
@@ -428,12 +436,8 @@ function App() {
       setFormError(parsed.error);
       return;
     }
-    const selectedDate = new Date(`${date}T12:00:00`);
-    if (
-      !date ||
-      !Number.isFinite(selectedDate.getTime()) ||
-      date > dateLocal()
-    ) {
+
+    if (!date || !validCalendarDate(date) || date > dateLocal()) {
       setFormError("Choose a valid reading date, today or earlier.");
       return;
     }
@@ -503,7 +507,7 @@ function App() {
       setEditing(conflict.stored);
       setEditingUpdatedAt(conflict.stored.updatedAt);
       setInput(conflict.stored.originalInput);
-      setDate(dateLocal(new Date(conflict.stored.startedAt)));
+      setDate(readingDate(conflict.stored.startedAt));
       setNotes(conflict.stored.notes);
     } else {
       setModal(false);
@@ -921,7 +925,7 @@ function App() {
                   <strong>{pretty(active.length)}</strong>
                   <span>
                     {active.length
-                      ? `Since ${formatDate([...active].sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0].startedAt)}`
+                      ? `Since ${formatDate([...active].sort((a, b) => compareReadingDates(a.startedAt, b.startedAt))[0].startedAt)}`
                       : "A place for each time you read"}
                   </span>
                 </div>
@@ -1189,7 +1193,7 @@ function App() {
                     aria-label="Search reading history"
                     value={historyQuery}
                     onChange={(e) => setHistoryQuery(e.target.value)}
-                    placeholder="Search passages or notes"
+                    placeholder="Search dates, passages or notes"
                   />
                 </div>
               </div>
@@ -1200,7 +1204,11 @@ function App() {
                     " " +
                     r.notes +
                     " " +
-                    r.ranges.map(rangeLabel).join(" ")
+                    r.ranges.map(rangeLabel).join(" ") +
+                    " " +
+                    readingDate(r.startedAt) +
+                    " " +
+                    formatDate(r.startedAt)
                   )
                     .toLowerCase()
                     .includes(historyQuery.toLowerCase()),
@@ -1255,7 +1263,11 @@ function App() {
                     " " +
                     r.notes +
                     " " +
-                    r.ranges.map(rangeLabel).join(" ")
+                    r.ranges.map(rangeLabel).join(" ") +
+                    " " +
+                    readingDate(r.startedAt) +
+                    " " +
+                    formatDate(r.startedAt)
                   )
                     .toLowerCase()
                     .includes(historyQuery.toLowerCase()),
@@ -1555,6 +1567,12 @@ function App() {
                   </>
                 )}
               </div>
+            )}
+            {editing?.legacyStartedAt && (
+              <small>
+                Legacy date estimated from UTC. Original timestamp:{" "}
+                {editing.legacyStartedAt}. Correct the date below if needed.
+              </small>
             )}
             <label className="field-label">
               Reading date
