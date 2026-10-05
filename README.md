@@ -36,10 +36,11 @@ Host the contents of `dist/` on any static web host, or serve that directory loc
 
 ## Project website
 
-The custom Jekyll project site lives in [`docs/`](docs/README.md), with a homepage,
-getting-started guide, and privacy information. See its README for local preview,
-customization, and GitHub Pages publishing instructions. The site introduces the
-project; the React journal app is built and hosted separately.
+The custom Jekyll project site lives in the
+[`travisseitler.github.io` repository](https://github.com/travisseitler/travisseitler.github.io/tree/main/jot-and-tittle),
+with a homepage, getting-started guide, and privacy information. See its README
+for local preview, customization, and GitHub Pages publishing instructions. The
+site introduces the project; the React journal app is built and hosted separately.
 
 ## Architecture
 
