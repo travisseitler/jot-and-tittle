@@ -6,6 +6,7 @@ import {
   serializeJournals,
   mergeJournalImport,
   migrateLegacyReadings,
+  type TrashEntry,
   type Journal,
   type JournalImport,
   type JournalReading,
@@ -40,6 +41,15 @@ export class ConflictError extends Error {
   }
 }
 
+export const TRASH_RETENTION_MS = 30 * 86400000;
+function trashEntry(readings: JournalReading[]): TrashEntry {
+  return {
+    id: crypto.randomUUID(),
+    deletedAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + TRASH_RETENTION_MS).toISOString(),
+    readings,
+  };
+}
 export const UNDO_DURATION_MS = 30_000;
 export interface UndoOpportunity {
   id: string;
@@ -51,11 +61,11 @@ const recovery = new Map<
   string,
   { opportunity: UndoOpportunity; readings: JournalReading[] }
 >();
-function remember(readings: JournalReading[]): UndoOpportunity {
+function remember(readings: JournalReading[], id: string): UndoOpportunity {
   for (const [id, entry] of recovery)
     if (entry.opportunity.expiresAt <= Date.now()) recovery.delete(id);
   const opportunity = {
-    id: crypto.randomUUID(),
+    id,
     expiresAt: Date.now() + UNDO_DURATION_MS,
     count: readings.length,
   };
@@ -71,6 +81,8 @@ function remember(readings: JournalReading[]): UndoOpportunity {
 
 export interface ReadingRepository {
   load(): Promise<JournalState>;
+  restoreTrash(id: string, destination?: string): Promise<JournalState>;
+  purgeTrash(id: string): Promise<JournalState>;
   exportAll(initiate: (json: string) => void): Promise<JournalState>;
   selectJournal(id: string): Promise<void>;
   putReading(
@@ -128,10 +140,12 @@ export const storageChannel = () =>
 
 const connect = () =>
   new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open("jot-and-tittle", 3);
+    const request = indexedDB.open("jot-and-tittle", 4);
     request.onupgradeneeded = (event) => {
       const db = request.result;
       const tx = request.transaction!;
+      if (event.oldVersion < 4)
+        db.createObjectStore("trash", { keyPath: "id" });
       if (event.oldVersion < 1)
         db.createObjectStore("readings", { keyPath: "id" });
       if (event.oldVersion < 2) {
@@ -186,14 +200,21 @@ const sortJournals = (rows: Journal[]) => {
 
 const readState = (db: IDBDatabase) =>
   new Promise<JournalState>((resolve, reject) => {
-    const tx = db.transaction(["readings", "journals", "settings"], "readonly");
+    const tx = db.transaction(
+      ["readings", "journals", "settings", "trash"],
+      "readonly",
+    );
     const readings = tx.objectStore("readings").getAll(),
       journals = tx.objectStore("journals").getAll(),
       setting = tx.objectStore("settings").get("activeJournalId"),
-      backup = tx.objectStore("settings").get("backup");
+      backup = tx.objectStore("settings").get("backup"),
+      trash = tx.objectStore("trash").getAll();
     tx.oncomplete = () => {
       const rows = sortJournals(journals.result as Journal[]);
       const state: JournalState = {
+        trash: (trash.result as TrashEntry[]).filter(
+          (t) => Date.parse(t.expiresAt) > Date.now(),
+        ),
         readings: readings.result as JournalReading[],
         journals: rows,
         activeJournalId: rows.some(
@@ -219,6 +240,11 @@ const readState = (db: IDBDatabase) =>
 const withDb = <T>(work: (db: IDBDatabase) => Promise<T>, broadcast = false) =>
   connect().then(async (db) => {
     try {
+      const cleanup = db.transaction("trash", "readwrite");
+      const store = cleanup.objectStore("trash");
+      for (const entry of (await req(store.getAll())) as TrashEntry[])
+        if (Date.parse(entry.expiresAt) <= Date.now()) store.delete(entry.id);
+      await commit(cleanup);
       const result = await work(db);
       if (broadcast) notify();
       return result;
@@ -240,6 +266,53 @@ const commit = (tx: IDBTransaction) =>
     tx.onabort = () =>
       reject(tx.error || new Error("Storage operation aborted."));
   });
+
+async function restoreDeleted(
+  id: string,
+  destination?: string,
+  undoExpiresAt?: number,
+): Promise<JournalState> {
+  return withDb(async (db) => {
+    const tx = db.transaction(
+      ["readings", "journals", "settings", "trash"],
+      "readwrite",
+    );
+    const trash = tx.objectStore("trash"),
+      readings = tx.objectStore("readings"),
+      journals = tx.objectStore("journals");
+    const entry = (await req(trash.get(id))) as TrashEntry | undefined;
+    if (!entry || Date.parse(entry.expiresAt) <= Date.now()) {
+      tx.abort();
+      throw new Error(
+        "This Trash entry has expired or was already restored or permanently deleted.",
+      );
+    }
+    for (const r of entry.readings) {
+      const target = await req(journals.get(destination || r.journalId));
+      if (!target || target.archived) {
+        tx.abort();
+        throw new Error(
+          "The original journal no longer exists or is archived. Choose an active destination or restore that journal first.",
+        );
+      }
+      if (await req(readings.get(r.id))) {
+        tx.abort();
+        throw new Error(
+          "A reading with the same ID exists. No records were overwritten.",
+        );
+      }
+    }
+    if (undoExpiresAt !== undefined && Date.now() >= undoExpiresAt) {
+      tx.abort();
+      throw new Error("Undo expired. Use Trash instead.");
+    }
+    for (const r of entry.readings)
+      readings.add(destination ? { ...r, journalId: destination } : r);
+    trash.delete(id);
+    await commit(tx);
+    return readState(db);
+  }, true);
+}
 
 export const repository: ReadingRepository = {
   async load() {
@@ -287,7 +360,7 @@ export const repository: ReadingRepository = {
       throw new Error("Journal and reading IDs must be present and unique.");
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const readings = tx.objectStore("readings"),
@@ -358,7 +431,7 @@ export const repository: ReadingRepository = {
   async copyReading(id, expectedUpdatedAt, destination, copyId) {
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const store = tx.objectStore("readings");
@@ -410,7 +483,7 @@ export const repository: ReadingRepository = {
   async moveReading(id, expectedUpdatedAt, destination) {
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const store = tx.objectStore("readings");
@@ -450,7 +523,7 @@ export const repository: ReadingRepository = {
   async deleteReading(id, expectedUpdatedAt) {
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const stored = (await req(tx.objectStore("readings").get(id))) as
@@ -469,52 +542,38 @@ export const repository: ReadingRepository = {
         tx.abort();
         throw new Error("Restore the journal before deleting readings.");
       }
+      const deleted = trashEntry([stored]);
+      tx.objectStore("trash").add(deleted);
       tx.objectStore("readings").delete(id);
       await commit(tx);
-      return { ...(await readState(db)), undo: remember([stored]) };
+      return { ...(await readState(db)), undo: remember([stored], deleted.id) };
     }, true);
   },
 
   async undo(id) {
-    return withDb(async (db) => {
-      const entry = recovery.get(id);
-      if (!entry || entry.opportunity.expiresAt <= Date.now()) {
-        recovery.delete(id);
-        throw new Error(
-          "Undo expired. The 30-second recovery window has ended.",
-        );
-      }
-      const tx = db.transaction(
-        ["readings", "journals", "settings"],
-        "readwrite",
-      );
-      const readings = tx.objectStore("readings");
-      const journals = tx.objectStore("journals");
-      for (const reading of entry.readings) {
-        const destination = await req(journals.get(reading.journalId));
-        if (!destination || destination.archived) {
-          tx.abort();
-          throw new Error(
-            "Undo cannot restore these readings because their original journal no longer exists.",
-          );
-        }
-        if (await req(readings.get(reading.id))) {
-          tx.abort();
-          throw new Error(
-            "Undo cannot restore these readings because a reading with the same ID now exists. No records were overwritten.",
-          );
-        }
-      }
-      // Recheck after waiting for the transaction's lock and validation.
-      if (entry.opportunity.expiresAt <= Date.now() || !recovery.has(id)) {
-        tx.abort();
-        throw new Error(
-          "Undo expired. The 30-second recovery window has ended.",
-        );
-      }
-      for (const reading of entry.readings) readings.add(reading);
-      await commit(tx);
+    const entry = recovery.get(id);
+    if (!entry || entry.opportunity.expiresAt <= Date.now()) {
       recovery.delete(id);
+      throw new Error(
+        "Undo expired. The 30-second recovery window has ended. Use Trash for 30-day recovery.",
+      );
+    }
+    const state = await restoreDeleted(
+      id,
+      undefined,
+      entry.opportunity.expiresAt,
+    );
+    recovery.delete(id);
+    return state;
+  },
+  async restoreTrash(id, destination) {
+    return restoreDeleted(id, destination);
+  },
+  async purgeTrash(id) {
+    return withDb(async (db) => {
+      const tx = db.transaction("trash", "readwrite");
+      tx.objectStore("trash").delete(id);
+      await commit(tx);
       return readState(db);
     }, true);
   },
@@ -524,7 +583,7 @@ export const repository: ReadingRepository = {
       throw new Error("Journal and reading IDs must be present and unique.");
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const journals = tx.objectStore("journals");
@@ -616,7 +675,7 @@ export const repository: ReadingRepository = {
       throw new Error("The default Journal cannot be deleted.");
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const journals = tx.objectStore("journals"),
@@ -654,7 +713,7 @@ export const repository: ReadingRepository = {
   async resetJournal(journalId, readingIds) {
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const journals = tx.objectStore("journals"),
@@ -673,15 +732,17 @@ export const repository: ReadingRepository = {
           readings.delete(id);
         }
       }
+      const entry = trashEntry(deleted);
+      tx.objectStore("trash").add(entry);
       await commit(tx);
-      return { ...(await readState(db)), undo: remember(deleted) };
+      return { ...(await readState(db)), undo: remember(deleted, entry.id) };
     }, true);
   },
 
   async mergeImport(incoming) {
     return withDb(async (db) => {
       const tx = db.transaction(
-        ["readings", "journals", "settings"],
+        ["readings", "journals", "settings", "trash"],
         "readwrite",
       );
       const readings = tx.objectStore("readings"),

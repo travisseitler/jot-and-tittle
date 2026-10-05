@@ -52,6 +52,7 @@ import {
   deserializeJournals,
   mergeJournalImport,
   describeConflict,
+  type TrashEntry,
   type Journal,
   type JournalReading as Reading,
   type JournalImport,
@@ -116,6 +117,12 @@ function App() {
   const [copyId, setCopyId] = useState("");
   const [destination, setDestination] = useState("");
   const [transferError, setTransferError] = useState("");
+  const [trash, setTrash] = useState<TrashEntry[]>([]);
+  const [trashDestination, setTrashDestination] = useState<
+    Record<string, string>
+  >({});
+  const [purgeEntry, setPurgeEntry] = useState<TrashEntry | null>(null);
+  const [trashError, setTrashError] = useState("");
   const [backup, setBackup] = useState<JournalState["backup"]>();
   const [hasUnexportedChanges, setHasUnexportedChanges] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -177,6 +184,7 @@ function App() {
     : null;
   const fileRef = useRef<HTMLInputElement>(null);
   function applyState(state: JournalState) {
+    setTrash(state.trash || []);
     setBackup(state.backup);
     setHasUnexportedChanges(state.hasUnexportedChanges ?? true);
     setArchivedViewId((id) =>
@@ -1484,6 +1492,89 @@ function App() {
                 </section>
               </div>
               <section className="panel">
+                <h2>Trash</h2>
+                <p>
+                  Readings are recoverable for 30 days after deletion, including
+                  journal clearing. Trash is excluded from maps, history,
+                  statistics, and exports. Restore before exporting a backup.
+                  Journal deletion keeps Trash; choose another destination if
+                  needed.
+                </p>
+                {trashError && <p role="alert">{trashError}</p>}
+                {!trash.length && <p>Trash is empty.</p>}
+                {trash.map((entry) => (
+                  <article key={entry.id}>
+                    <h3>{entry.readings.length} deleted readings</h3>
+                    <p>
+                      Deleted {formatDate(entry.deletedAt)} · Expires{" "}
+                      {formatDate(entry.expiresAt)}
+                    </p>
+                    {entry.readings.map((r) => (
+                      <p key={r.id}>
+                        {r.ranges.map(rangeLabel).join("; ")} ·{" "}
+                        {formatDate(r.startedAt)} · {r.notes} · Original
+                        journal:{" "}
+                        {journals.find((j) => j.id === r.journalId)?.name ||
+                          "Removed journal"}
+                      </p>
+                    ))}
+                    <label>
+                      Restoration destination
+                      <select
+                        aria-label={`Restore destination ${entry.id}`}
+                        value={trashDestination[entry.id] || ""}
+                        onChange={(e) =>
+                          setTrashDestination((x) => ({
+                            ...x,
+                            [entry.id]: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">
+                          Original journal (must be active)
+                        </option>
+                        {journals
+                          .filter((j) => !j.archived)
+                          .map((j) => (
+                            <option key={j.id} value={j.id}>
+                              {j.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        if (saving) return;
+                        setSaving(true);
+                        try {
+                          applyState(
+                            await repository.restoreTrash(
+                              entry.id,
+                              trashDestination[entry.id] || undefined,
+                            ),
+                          );
+                          setTrashError("");
+                          setUndos((x) => x.filter((u) => u.id !== entry.id));
+                        } catch (e) {
+                          setTrashError((e as Error).message);
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                    >
+                      Restore deleted readings
+                    </button>
+                    <button
+                      disabled={saving}
+                      onClick={() => setPurgeEntry(entry)}
+                    >
+                      Permanently delete from Trash
+                    </button>
+                  </article>
+                ))}
+              </section>
+              <section className="panel">
                 <h2>Journals</h2>
                 <button
                   className="secondary"
@@ -1925,7 +2016,7 @@ function App() {
           <p className="dialog-intro">
             {confirmDelete
               ? `${confirmDelete.ranges.map(rangeLabel).join("; ")} · ${formatDate(confirmDelete.startedAt)}`
-              : `The ${resetReadingIds.length} readings present when you opened this confirmation will be removed. Readings added afterward in another tab are preserved. Other journals stay intact. This cannot be undone without an export.`}
+              : `The ${resetReadingIds.length} readings present when you opened this confirmation will be removed. Readings added afterward in another tab are preserved. Other journals stay intact. Recover these readings from Trash for 30 days.`}
           </p>
           {confirmReset && (
             <button className="secondary" onClick={exportData}>
@@ -2027,6 +2118,36 @@ function App() {
             }}
           >
             {transferMode === "copy" ? "Copy reading" : "Move reading"}
+          </button>
+        </Dialog>
+      )}
+      {purgeEntry && (
+        <Dialog
+          title="Permanently delete readings"
+          onClose={() => setPurgeEntry(null)}
+        >
+          <p>
+            Permanently remove {purgeEntry.readings.length} readings from Trash.
+            This cannot be undone.
+          </p>
+          <button
+            className="danger"
+            disabled={saving}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(await repository.purgeTrash(purgeEntry.id));
+                setUndos((x) => x.filter((u) => u.id !== purgeEntry.id));
+                setPurgeEntry(null);
+              } catch (e) {
+                setTrashError((e as Error).message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Confirm permanent deletion
           </button>
         </Dialog>
       )}

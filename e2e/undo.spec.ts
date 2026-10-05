@@ -102,7 +102,7 @@ test("Undo explains a journal removed by another tab", async ({
   // A journal can be removed externally even though the app has no delete-journal UI.
   await other.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("jot-and-tittle", 3);
+      const request = indexedDB.open("jot-and-tittle");
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -131,7 +131,7 @@ test("Undo cannot overwrite a record restored and changed in another tab", async
   await log(page, "Genesis 1:1", "original");
   const original = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open("jot-and-tittle", 3);
+      const request = indexedDB.open("jot-and-tittle");
       request.onsuccess = () => resolve(request.result);
     });
     const rows = await new Promise<any[]>((resolve) => {
@@ -149,7 +149,7 @@ test("Undo cannot overwrite a record restored and changed in another tab", async
   await open(other);
   await other.evaluate(async (record) => {
     const db = await new Promise<IDBDatabase>((resolve) => {
-      const request = indexedDB.open("jot-and-tittle", 3);
+      const request = indexedDB.open("jot-and-tittle");
       request.onsuccess = () => resolve(request.result);
     });
     await new Promise<void>((resolve) => {

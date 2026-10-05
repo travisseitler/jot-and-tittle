@@ -651,3 +651,67 @@ test("journal deletion prevents default loss, stale confirmation and concurrent 
   assert.equal(deleted.activeJournalId, DEFAULT_JOURNAL_ID);
   assert.ok(!deleted.journals.some((x) => x.id === j.id));
 });
+
+test("persistent Trash restores exact records once across concurrent operations", async () => {
+  const r = reading("trash-persistent");
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, r.updatedAt);
+  const reloaded = await repository.load();
+  const entry = reloaded.trash!.find((x) => x.id === deleted.undo.id)!;
+  assert.deepEqual(entry.readings, [r]);
+  assert.ok(!reloaded.readings.some((x) => x.id === r.id));
+  assert.ok(
+    !serializeJournals(reloaded.journals, reloaded.readings).readings.some(
+      (x) => x.id === r.id,
+    ),
+  );
+  const results = await Promise.allSettled([
+    repository.restoreTrash(entry.id),
+    repository.restoreTrash(entry.id),
+  ]);
+  assert.equal(results.filter((x) => x.status === "fulfilled").length, 1);
+  assert.deepEqual(
+    (await repository.load()).readings.find((x) => x.id === r.id),
+    r,
+  );
+  await assert.rejects(repository.undo(entry.id));
+});
+test("Trash survives journal removal, requires explicit destination and never overwrites", async () => {
+  await repository.putJournal(journal("trash-gone", "Trash gone"), null);
+  const r = reading("trash-orphan", { journalId: "trash-gone" });
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, timestamp);
+  await repository.deleteJournal("trash-gone", timestamp);
+  await assert.rejects(
+    repository.restoreTrash(deleted.undo.id),
+    /original journal/,
+  );
+  await repository.putReading(reading(r.id), null);
+  await assert.rejects(
+    repository.restoreTrash(deleted.undo.id, DEFAULT_JOURNAL_ID),
+    /same ID/,
+  );
+  await repository.deleteReading(r.id, timestamp);
+  await repository.restoreTrash(deleted.undo.id, DEFAULT_JOURNAL_ID);
+  assert.equal(
+    (await repository.load()).readings.find((x) => x.id === r.id)!.journalId,
+    DEFAULT_JOURNAL_ID,
+  );
+});
+test("retention cleanup uses deletion time and leaves active readings alone", async (t) => {
+  const r = reading("trash-expiry");
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, timestamp);
+  const entry = deleted.trash!.find((x) => x.id === deleted.undo.id)!;
+  t.mock.method(Date, "now", () => Date.parse(entry.expiresAt));
+  const cleaned = await repository.load();
+  assert.ok(!cleaned.trash!.some((x) => x.id === entry.id));
+  assert.ok(cleaned.readings.some((x) => x.id === "one"));
+  await assert.rejects(repository.restoreTrash(entry.id));
+  assert.throws(() =>
+    deserializeJournals({
+      ...serializeJournals(cleaned.journals, cleaned.readings),
+      trash: [],
+    }),
+  );
+});
