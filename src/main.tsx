@@ -1407,7 +1407,6 @@ function App() {
             <label className="field-label">
               Passage or passages
               <input
-                autoFocus
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="e.g. Romans 8:1–17; Psalm 23"
@@ -1773,7 +1772,6 @@ function App() {
             <label className="field-label">
               Journal name
               <input
-                autoFocus
                 value={journalName}
                 onChange={(e) => {
                   setJournalName(e.target.value);
@@ -1888,6 +1886,7 @@ function Dialog({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const titleId = React.useId();
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
@@ -1914,7 +1913,7 @@ function Dialog({
         ref={root}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={titleId}
         onKeyDown={(e) => {
           if (e.key === "Tab") {
             const elements = Array.from(
@@ -1935,7 +1934,7 @@ function Dialog({
         }}
       >
         <div className="dialog-heading">
-          <h2 id="dialog-title">{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button
             className="icon-btn"
             aria-label="Close dialog"
