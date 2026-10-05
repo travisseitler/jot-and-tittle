@@ -13,6 +13,7 @@ export function Heatmap({
   scope,
   stats,
   everStats,
+  now = Date.now(),
   metric,
   layout,
   zoom,
@@ -21,6 +22,7 @@ export function Heatmap({
   scope: Range;
   stats: Stats[];
   everStats?: Stats[];
+  now?: number;
   metric: string;
   layout: string;
   zoom: number;
@@ -62,7 +64,6 @@ export function Heatmap({
     const ctx = c.getContext("2d")!;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, height);
-    const now = Date.now();
     for (let id = scope.start; id <= scope.end; id++) {
       const i = id - offset;
       ctx.fillStyle = metricColor(stats[id], metric, now);
@@ -73,7 +74,16 @@ export function Heatmap({
         stride - 1,
       );
     }
-  }, [width, scope.start, scope.end, stats, metric, layout, zoom]);
+  }, [
+    width,
+    scope.start,
+    scope.end,
+    stats,
+    metric,
+    layout,
+    zoom,
+    metric === "frequency" ? 0 : now,
+  ]);
   useEffect(() => {
     const c = overlay.current;
     if (!c) return;

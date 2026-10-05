@@ -61,6 +61,11 @@ import {
   type JournalState,
 } from "./journals";
 import { periodBounds, inPeriod, nextCalendarRefresh } from "./periods";
+import {
+  recencyRefreshDelay,
+  clockContext,
+  recencySignature,
+} from "./recencyClock";
 import { MetricLegend } from "./MetricLegend";
 import {
   ConflictError,
@@ -325,7 +330,9 @@ function App() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [conflict]);
-  const [today, setToday] = useState(dateLocal());
+  const [timeNow, setTimeNow] = useState(Date.now());
+  const today = dateLocal(new Date(timeNow));
+  const timeContext = clockContext(timeNow);
   const [periodMode, setPeriodMode] = useState("all");
   const [periodFrom, setPeriodFrom] = useState(dateLocal());
   const [periodTo, setPeriodTo] = useState(dateLocal());
@@ -334,12 +341,53 @@ function App() {
     to: dateLocal(),
   });
   const [periodError, setPeriodError] = useState("");
+  const period = periodBounds(
+    periodMode,
+    today,
+    appliedPeriod.from,
+    appliedPeriod.to,
+  );
+  const unfilteredStats = useMemo(
+    () => deriveStats(sample ? [] : readings),
+    [readings, sample, timeContext],
+  );
+  const demo = useMemo(
+      () =>
+        sampleReadings().map((r) => ({ ...r, journalId: DEFAULT_JOURNAL_ID })),
+      [],
+    ),
+    active = useMemo(
+      () => (sample ? demo : readings).filter((r) => inPeriod(r, period)),
+      [sample, demo, readings, period.from, period.to, today, timeContext],
+    ),
+    stats = useMemo(
+      () =>
+        !archivedViewId && journalScopeMode !== "single" && !sample
+          ? aggregateStats(active)
+          : deriveStats(active),
+      [active, journalScopeMode, archivedViewId, sample, timeContext],
+    ),
+    sorted = useMemo(
+      () =>
+        [...active].sort((a, b) =>
+          compareReadingDates(b.startedAt, a.startedAt),
+        ),
+      [active, timeContext],
+    );
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
+    let signature = recencySignature(stats, timeNow, metric),
+      context = clockContext(timeNow);
     const refresh = () => {
-      setToday(dateLocal());
+      const now = Date.now(),
+        nextSignature = recencySignature(stats, now, metric),
+        nextContext = clockContext(now);
+      if (nextSignature !== signature || nextContext !== context)
+        setTimeNow(now);
+      signature = nextSignature;
+      context = nextContext;
       clearTimeout(timer);
-      timer = setTimeout(refresh, Math.min(nextCalendarRefresh(), 3600000));
+      timer = setTimeout(refresh, recencyRefreshDelay(stats, now, metric));
     };
     const foreground = () => {
       if (document.visibilityState === "visible") refresh();
@@ -352,40 +400,7 @@ function App() {
       document.removeEventListener("visibilitychange", foreground);
       window.removeEventListener("focus", refresh);
     };
-  }, []);
-  const period = periodBounds(
-    periodMode,
-    today,
-    appliedPeriod.from,
-    appliedPeriod.to,
-  );
-  const unfilteredStats = useMemo(
-    () => deriveStats(sample ? [] : readings),
-    [readings, sample],
-  );
-  const demo = useMemo(
-      () =>
-        sampleReadings().map((r) => ({ ...r, journalId: DEFAULT_JOURNAL_ID })),
-      [],
-    ),
-    active = useMemo(
-      () => (sample ? demo : readings).filter((r) => inPeriod(r, period)),
-      [sample, demo, readings, period.from, period.to, today],
-    ),
-    stats = useMemo(
-      () =>
-        !archivedViewId && journalScopeMode !== "single" && !sample
-          ? aggregateStats(active)
-          : deriveStats(active),
-      [active, journalScopeMode, archivedViewId, sample],
-    ),
-    sorted = useMemo(
-      () =>
-        [...active].sort((a, b) =>
-          compareReadingDates(b.startedAt, a.startedAt),
-        ),
-      [active],
-    );
+  }, [stats, metric, timeNow]);
   const scope: Range =
     scopeRange ||
     (book === "all"
@@ -1316,6 +1331,7 @@ function App() {
                       scope={scope}
                       stats={stats}
                       everStats={unfilteredStats}
+                      now={timeNow}
                       metric={metric}
                       layout={layout}
                       zoom={zoom}
