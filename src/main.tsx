@@ -60,6 +60,7 @@ import {
   type JournalImport,
   type JournalState,
 } from "./journals";
+import { periodBounds, inPeriod, nextCalendarRefresh } from "./periods";
 import { MetricLegend } from "./MetricLegend";
 import {
   ConflictError,
@@ -324,12 +325,53 @@ function App() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [conflict]);
+  const [today, setToday] = useState(dateLocal());
+  const [periodMode, setPeriodMode] = useState("all");
+  const [periodFrom, setPeriodFrom] = useState(dateLocal());
+  const [periodTo, setPeriodTo] = useState(dateLocal());
+  const [appliedPeriod, setAppliedPeriod] = useState({
+    from: dateLocal(),
+    to: dateLocal(),
+  });
+  const [periodError, setPeriodError] = useState("");
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = () => {
+      setToday(dateLocal());
+      clearTimeout(timer);
+      timer = setTimeout(refresh, Math.min(nextCalendarRefresh(), 3600000));
+    };
+    const foreground = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    refresh();
+    document.addEventListener("visibilitychange", foreground);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", foreground);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+  const period = periodBounds(
+    periodMode,
+    today,
+    appliedPeriod.from,
+    appliedPeriod.to,
+  );
+  const unfilteredStats = useMemo(
+    () => deriveStats(sample ? [] : readings),
+    [readings, sample],
+  );
   const demo = useMemo(
       () =>
         sampleReadings().map((r) => ({ ...r, journalId: DEFAULT_JOURNAL_ID })),
       [],
     ),
-    active = sample ? demo : readings,
+    active = useMemo(
+      () => (sample ? demo : readings).filter((r) => inPeriod(r, period)),
+      [sample, demo, readings, period.from, period.to, today],
+    ),
     stats = useMemo(
       () =>
         !archivedViewId && journalScopeMode !== "single" && !sample
@@ -876,6 +918,68 @@ function App() {
         )}
 
         <div className="content">
+          <section className="panel" aria-label="Calendar filters">
+            <label>
+              Reading period
+              <select
+                aria-label="Reading period"
+                value={periodMode}
+                onChange={(e) => {
+                  setPeriodMode(e.target.value);
+                  setPeriodError("");
+                }}
+              >
+                <option value="all">All time</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </label>
+            {periodMode === "custom" && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  try {
+                    periodBounds("custom", today, periodFrom, periodTo);
+                    setAppliedPeriod({ from: periodFrom, to: periodTo });
+                    setPeriodError("");
+                  } catch (e) {
+                    setPeriodError((e as Error).message);
+                  }
+                }}
+              >
+                <label>
+                  Start date
+                  <input
+                    type="date"
+                    value={periodFrom}
+                    onChange={(e) => setPeriodFrom(e.target.value)}
+                  />
+                </label>
+                <label>
+                  End date
+                  <input
+                    type="date"
+                    value={periodTo}
+                    onChange={(e) => setPeriodTo(e.target.value)}
+                  />
+                </label>
+                <button>Apply dates</button>
+              </form>
+            )}
+            {periodError && <p role="alert">{periodError}</p>}
+            <p>
+              Applied period:{" "}
+              {period.from
+                ? `${period.from} through ${period.to} (inclusive)`
+                : "All time"}
+              . Recency is measured relative to today, {today}, in this
+              browser’s timezone. Known times use their local calendar date.
+            </p>
+            {periodMode !== "all" && !active.length && (
+              <p role="status">No readings in this period.</p>
+            )}
+          </section>
           <section className="panel" aria-label="Journal view scope">
             <label>
               View journals
@@ -1211,6 +1315,7 @@ function App() {
                     <Heatmap
                       scope={scope}
                       stats={stats}
+                      everStats={unfilteredStats}
                       metric={metric}
                       layout={layout}
                       zoom={zoom}
@@ -1876,7 +1981,9 @@ function App() {
             <p>
               {stats[selected].last
                 ? `Last read ${formatDate(stats[selected].last!)}`
-                : "This verse has no recorded readings."}
+                : unfilteredStats[selected].count
+                  ? "No readings in this period."
+                  : "Never recorded in these journals."}
             </p>
             {stats[selected].first && (
               <p className="muted">

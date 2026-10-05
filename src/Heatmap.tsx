@@ -12,6 +12,7 @@ import {
 export function Heatmap({
   scope,
   stats,
+  everStats,
   metric,
   layout,
   zoom,
@@ -19,6 +20,7 @@ export function Heatmap({
 }: {
   scope: Range;
   stats: Stats[];
+  everStats?: Stats[];
   metric: string;
   layout: string;
   zoom: number;
@@ -175,7 +177,9 @@ export function Heatmap({
             <span>
               {stats[hover].count
                 ? `${stats[hover].count} reading${stats[hover].count === 1 ? "" : "s"} · Last read ${formatReadingDate(stats[hover].last!)}`
-                : "No recorded readings"}
+                : everStats?.[hover].count
+                  ? "No readings in this period"
+                  : "Never recorded"}
             </span>
             <small>
               {books[verses[hover].book].name} highlighted · Click to inspect
