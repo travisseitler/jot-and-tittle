@@ -25,6 +25,24 @@ never arbitrary sleeps. Migration seeds a real v1 IndexedDB before the app loads
 Failure traces and screenshots appear in `test-results/`, with an HTML report
 in `playwright-report/`; CI uploads both even when tests fail.
 
+CI cancels older runs for the same source repository and branch, so opening a
+PR replaces its in-progress push run with a run against the PR merge commit.
+Unit tests and the production build run once. Four parallel browser jobs reuse
+that build: desktop/mobile Chromium, Firefox, desktop WebKit, and mobile WebKit.
+Each installs only its required browser; Chromium installs the headless shell.
+Browser binaries are cached by OS, architecture, Linux distribution version,
+browser engine, and the installed Playwright version. Exact cache hits skip
+browser downloads; system dependencies are installed on every fresh runner.
+Desktop and mobile WebKit share a cache key. Successful pushes to `main` populate
+caches that other branches and PRs can restore; caches created on a feature
+branch or PR are subject to GitHub's branch scope restrictions. Unrelated npm
+dependency changes do not invalidate the browser cache.
+Every existing test/project combination still runs, with the same isolation,
+assertions and retries. Reports are uploaded separately for each browser job.
+The final `test` check requires both the build and all browser jobs to succeed.
+`PLAYWRIGHT_SKIP_BUILD=1` lets CI serve the downloaded production build; local
+commands continue building from source by default.
+
 The supported test matrix is Playwright's bundled desktop Chromium, Firefox,
 and WebKit, plus Pixel 7 Chromium and iPhone 13 WebKit viewport/touch emulation.
 All core workflows and concurrent-tab tests run in every project. Touch tests

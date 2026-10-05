@@ -2,28 +2,105 @@ name: Tests
 on:
   push:
   pull_request:
+concurrency:
+  # Push and PR events for the same source branch share a group. Include the
+  # source repository so identically named branches in forks remain independent.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref && format('refs/heads/{0}', github.head_ref) || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.x"
       - run: npm ci
       - run: npm test
-      - run: npx playwright install --with-deps chromium firefox webkit
-      - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - run: npm run build
+      - uses: actions/upload-artifact@v6
         with:
-          name: browser-test-report
+          name: production-build
+          path: dist/
+          retention-days: 1
+  browsers:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: chromium
+            browser: chromium
+            projects: --project=chromium --project=mobile-chromium
+          - name: firefox
+            browser: firefox
+            projects: --project=firefox
+          - name: webkit
+            browser: webkit
+            projects: --project=webkit
+          - name: mobile-webkit
+            browser: webkit
+            projects: --project=mobile-webkit
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          name: production-build
+          path: dist/
+      - name: Identify browser cache version
+        id: playwright
+        run: |
+          playwright_version=$(node -p "require('./node_modules/playwright-core/package.json').version")
+          echo "version=$playwright_version" >> "$GITHUB_OUTPUT"
+          . /etc/os-release
+          echo "platform=$ID-$VERSION_ID" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: browser-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          # Version the cache layout and installation mode too. No fallback keys:
+          # a different Playwright version must download its own browser revisions.
+          key: playwright-shell-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.platform }}-${{ matrix.browser }}-${{ steps.playwright.outputs.version }}
+      - name: Install browser system dependencies
+        run: npx playwright install-deps ${{ matrix.browser }}
+      - name: Download Playwright browser
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --only-shell ${{ matrix.browser }}
+      - run: npm run test:e2e -- ${{ matrix.projects }}
+        env:
+          PLAYWRIGHT_SKIP_BUILD: "1"
+      - uses: actions/upload-artifact@v6
+        if: ${{ !cancelled() }}
+        with:
+          name: browser-test-report-${{ matrix.name }}
           path: |
             playwright-report/
             test-results/
           retention-days: 14
+  # Keep a stable required check, independent of matrix job names. A failed or
+  # skipped dependency must never produce a successful test check.
+  test:
+    if: ${{ always() }}
+    needs: [build, browsers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all tests to pass
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          BROWSER_RESULT: ${{ needs.browsers.result }}
+        run: test "$BUILD_RESULT" = success && test "$BROWSER_RESULT" = success
