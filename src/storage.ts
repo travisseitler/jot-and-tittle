@@ -1,6 +1,8 @@
+import { exportFingerprint, type BackupRecord } from "./backup";
 import {
   DEFAULT_JOURNAL_ID,
   defaultJournal,
+  serializeJournals,
   mergeJournalImport,
   migrateLegacyReadings,
   type Journal,
@@ -68,6 +70,7 @@ function remember(readings: JournalReading[]): UndoOpportunity {
 
 export interface ReadingRepository {
   load(): Promise<JournalState>;
+  exportAll(initiate: (json: string) => void): Promise<JournalState>;
   selectJournal(id: string): Promise<void>;
   putReading(
     reading: JournalReading,
@@ -91,10 +94,11 @@ export interface ReadingRepository {
 }
 
 const CHANNEL = "jot-and-tittle";
+export const storageClientId = crypto.randomUUID();
 const notify = () => {
   try {
     const channel = new BroadcastChannel(CHANNEL);
-    channel.postMessage({ type: "change" });
+    channel.postMessage({ type: "change", source: storageClientId });
     channel.close();
   } catch {
     /* BroadcastChannel unavailable */
@@ -158,16 +162,26 @@ const readState = (db: IDBDatabase) =>
     const tx = db.transaction(["readings", "journals", "settings"], "readonly");
     const readings = tx.objectStore("readings").getAll(),
       journals = tx.objectStore("journals").getAll(),
-      setting = tx.objectStore("settings").get("activeJournalId");
+      setting = tx.objectStore("settings").get("activeJournalId"),
+      backup = tx.objectStore("settings").get("backup");
     tx.oncomplete = () => {
       const rows = sortJournals(journals.result as Journal[]);
-      resolve({
+      const state: JournalState = {
         readings: readings.result as JournalReading[],
         journals: rows,
         activeJournalId: rows.some((j) => j.id === setting.result?.value)
           ? setting.result.value
           : rows[0]?.id || DEFAULT_JOURNAL_ID,
-      });
+        backup: backup.result?.value,
+      };
+      exportFingerprint(state).then(
+        (fingerprint) =>
+          resolve({
+            ...state,
+            hasUnexportedChanges: fingerprint !== state.backup?.fingerprint,
+          }),
+        reject,
+      );
     };
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -201,6 +215,29 @@ const commit = (tx: IDBTransaction) =>
 export const repository: ReadingRepository = {
   async load() {
     return withDb(readState);
+  },
+
+  async exportAll(initiate) {
+    return withDb(async (db) => {
+      const snapshot = await readState(db);
+      const json = JSON.stringify(
+        serializeJournals(snapshot.journals, snapshot.readings),
+        null,
+        2,
+      );
+      const fingerprint = await exportFingerprint(snapshot);
+      const initiatedAt = new Date().toISOString();
+      // Generation and download initiation must succeed before recording status.
+      initiate(json);
+      const tx = db.transaction("settings", "readwrite");
+      const settings = tx.objectStore("settings");
+      const previous = (await req(settings.get("backup")))?.value as
+        BackupRecord | undefined;
+      if (!previous || previous.initiatedAt <= initiatedAt)
+        settings.put({ id: "backup", value: { initiatedAt, fingerprint } });
+      await commit(tx);
+      return readState(db);
+    }, true);
   },
 
   async selectJournal(id) {
