@@ -243,7 +243,12 @@ test("journal create and delete remove only that journal’s readings", async ()
     reading("temp-reading", { journalId: "temp" }),
     null,
   );
-  const afterDelete = await repository.deleteJournal("temp");
+  await assert.rejects(
+    repository.deleteJournal("temp", timestamp),
+    /contains readings/,
+  );
+  await repository.resetJournal("temp", ["temp-reading"]);
+  const afterDelete = await repository.deleteJournal("temp", timestamp);
   assert.equal(
     afterDelete.journals.some((j) => j.id === "temp"),
     false,
@@ -453,7 +458,7 @@ test("Undo fails atomically for a missing journal or concurrently reused ID", as
     null,
   );
   const deleted = await repository.deleteReading("undo-orphan", timestamp);
-  await repository.deleteJournal("undo-gone");
+  await repository.deleteJournal("undo-gone", timestamp);
   await assert.rejects(
     repository.undo(deleted.undo.id),
     /original journal no longer exists/,
@@ -621,4 +626,28 @@ test("archiving preserves history, excludes writes, restores identity and round 
     restored.readings.find((x) => x.id === r.id),
     r,
   );
+});
+
+test("journal deletion prevents default loss, stale confirmation and concurrent additions", async () => {
+  await assert.rejects(repository.deleteJournal(DEFAULT_JOURNAL_ID, timestamp));
+  const j = journal("delete-empty", "Delete empty");
+  await repository.putJournal(j, null);
+  await repository.putJournal(
+    { ...j, name: "Renamed empty", updatedAt: "2026-10-05T10:00:00Z" },
+    timestamp,
+  );
+  await assert.rejects(repository.deleteJournal(j.id, timestamp));
+  const rev = "2026-10-05T10:00:00Z";
+  await repository.putReading(
+    reading("late-delete", { journalId: j.id }),
+    null,
+  );
+  await assert.rejects(
+    repository.deleteJournal(j.id, rev),
+    /contains readings/,
+  );
+  await repository.resetJournal(j.id, ["late-delete"]);
+  const deleted = await repository.deleteJournal(j.id, rev);
+  assert.equal(deleted.activeJournalId, DEFAULT_JOURNAL_ID);
+  assert.ok(!deleted.journals.some((x) => x.id === j.id));
 });

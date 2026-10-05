@@ -155,6 +155,8 @@ function App() {
     [journalEditing, setJournalEditing] = useState<Journal | null>(null),
     [journalName, setJournalName] = useState(""),
     [journalError, setJournalError] = useState("");
+  const [deleteJournal, setDeleteJournal] = useState<Journal | null>(null);
+  const [deleteJournalError, setDeleteJournalError] = useState("");
   const [manageJournals, setManageJournals] = useState(false);
   const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
   const readOnly = !!archivedViewId;
@@ -2025,6 +2027,64 @@ function App() {
             }}
           >
             {transferMode === "copy" ? "Copy reading" : "Move reading"}
+          </button>
+        </Dialog>
+      )}
+      {deleteJournal && (
+        <Dialog
+          title={`Delete journal “${deleteJournal.name}”`}
+          onClose={() => setDeleteJournal(null)}
+        >
+          <p>
+            {allReadings.filter((r) => r.journalId === deleteJournal.id).length}{" "}
+            active readings are associated with this journal. Journals must be
+            empty before deletion. Move readings to another journal, or restore
+            an archive and clear its readings first. Archive instead to keep
+            this journal.
+          </p>
+          <p>
+            Journal deletion is permanent. Export all journals before
+            proceeding. Deleted readings in Trash will require another
+            destination if this journal is removed.
+          </p>
+          <button
+            className="secondary"
+            onClick={exportData}
+            disabled={exporting}
+          >
+            Export all journals
+          </button>
+          {deleteJournalError && <p role="alert">{deleteJournalError}</p>}
+          <button
+            className="danger"
+            disabled={
+              saving ||
+              allReadings.some((r) => r.journalId === deleteJournal.id)
+            }
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(
+                  await repository.deleteJournal(
+                    deleteJournal.id,
+                    deleteJournal.updatedAt,
+                  ),
+                );
+                setDeleteJournal(null);
+                setToast("Empty journal deleted.");
+              } catch (e) {
+                setDeleteJournalError(
+                  e instanceof ConflictError
+                    ? describeConflict(e.kind)
+                    : (e as Error).message,
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Permanently delete empty journal
           </button>
         </Dialog>
       )}
