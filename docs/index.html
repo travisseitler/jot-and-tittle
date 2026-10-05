@@ -1,0 +1,133 @@
+---
+layout: default
+description: Record what you read. See where you return. A private, verse-level map of your Bible reading, with no account required.
+---
+
+<section class="hero wrap">
+  <div class="hero-copy">
+    <p class="eyebrow">
+      <span class="status-dot"></span> A small companion for Scripture
+    </p>
+    <h1>Every verse.<br />Every return.<br /><em>A little mark.</em></h1>
+    <p class="intro">
+      Your reading has a story. Jot & Tittle gives it a place to grow—a quiet,
+      verse-level map of your journey through the Bible.
+    </p>
+    <div class="actions">
+      <a class="button" href="{% include start-link.html %}"
+        >{% if site.app_url != empty %}Open the app{% else %}Start your
+        journal{% endif %} <span aria-hidden="true">↗</span></a
+      ><a class="text-link" href="#a-closer-look"
+        >Take a closer look <span aria-hidden="true">↓</span></a
+      >
+    </div>
+    <p class="micro">No account. No tracking. Your history stays with you.</p>
+  </div>
+  <figure class="map-card">
+    <div class="map-card-top">
+      <span class="eyebrow">A reading life, taking shape</span
+      ><span class="map-dots" aria-hidden="true">•••</span>
+    </div>
+    <div class="map-title">
+      <h2>Your Scripture map</h2>
+      <span>Illustrative preview</span>
+    </div>
+    <img
+      class="verse-map"
+      src="{{ '/assets/verse-map.svg' | relative_url }}"
+      alt="An illustrative verse map, with clusters of pale and deep green squares showing passages read and revisited."
+    />
+    <div class="map-key">
+      <span>Each little square, a verse.</span
+      ><span class="swatches" aria-hidden="true"
+        ><i></i><i></i><i></i><i></i><i></i
+      ></span>
+    </div>
+    <div class="map-note">
+      <span class="note-mark" aria-hidden="true">↳</span>
+      <p>Some pages become familiar.<br />Others are still waiting.</p>
+    </div>
+    <figcaption>A picture of your reading, one passage at a time.</figcaption>
+  </figure>
+</section>
+<div class="facts wrap">
+  <span><strong>66</strong> books, one continuous map</span
+  ><span><strong>31,102</strong> verse-sized possibilities</span
+  ><span><strong>Yours</strong> to keep, export, and revisit</span>
+</div>
+<section class="closer wrap" id="a-closer-look">
+  <div class="section-heading">
+    <p class="eyebrow">Attention, not a finish line</p>
+    <h2>A record of where<br />you’ve been. <em>Room to return.</em></h2>
+    <p>
+      See the shape of your reading without turning a quiet practice into a
+      race.
+    </p>
+  </div>
+  <div class="feature-grid">
+    <article>
+      <span class="feature-number">01 / RECORD</span>
+      <h3>Begin with a passage.</h3>
+      <p>
+        Log a verse, a chapter, or a range across books. Add the date and a
+        thought you want to remember.
+      </p>
+      <div class="passage-example">
+        <span>PASSAGE</span><strong>John 1:1–18; Psalm 23</strong
+        ><small>A little reading. A little reflection.</small>
+      </div>
+    </article>
+    <article>
+      <span class="feature-number">02 / NOTICE</span>
+      <h3>See the familiar places.</h3>
+      <p>
+        Explore what you’ve read recently and what you return to often. Zoom
+        from the whole Bible into a single chapter.
+      </p>
+      <div class="color-example" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <small class="example-caption"
+        >Recency and frequency, in a quieter palette.</small
+      >
+    </article>
+    <article>
+      <span class="feature-number">03 / KEEP</span>
+      <h3>Make space for your story.</h3>
+      <p>
+        Keep separate journals for different seasons or studies. Your notes and
+        history stay in your browser, ready to export.
+      </p>
+      <div class="journal-example">
+        <span>Journal</span><span>Sunday readings</span
+        ><span>A season in the Psalms</span>
+      </div>
+    </article>
+  </div>
+</section>
+<section class="ownership wrap">
+  <div class="ownership-symbol" aria-hidden="true">&</div>
+  <div>
+    <p class="eyebrow">Personal by design</p>
+    <h2>Your journal belongs to you.</h2>
+    <p>
+      No sign-in, no cloud database, no analytics. After its first full
+      production load, the app works offline. Export a backup whenever you want
+      to keep a copy.
+    </p>
+    <a class="text-link" href="{{ '/privacy/' | relative_url }}"
+      >Understand where your data lives →</a
+    >
+  </div>
+</section>
+<section class="closing wrap">
+  <p class="eyebrow">One passage is a beginning</p>
+  <h2>Leave a little mark.</h2>
+  <p>Bring your Bible. We’ll keep your place.</p>
+  <a class="button" href="{% include start-link.html %}"
+    >{% if site.app_url != empty %}Open the app{% else %}Get started{% endif %}
+    <span aria-hidden="true">↗</span></a
+  ><a class="closing-source" href="{{ site.repository_url }}"
+    >Free, open source, and made to be yours.</a
+  >
+</section>
