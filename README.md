@@ -59,3 +59,19 @@ Verse counts were extracted from the public-domain KJV dataset in [scrollmapper/
 ## License
 
 MIT, chosen for this implementation. See LICENSE. A future change to a copyleft license requires a separate project decision.
+
+Deleting a reading or clearing a journal commits immediately and offers a separate
+30-second Undo action for each operation. Undo remains available when navigating
+between app views or journals in the same tab. Reloading, closing the tab, or
+restarting the browser ends these temporary recovery windows. The interface shows
+the remaining seconds and explicitly marks expired opportunities.
+
+Undo restores the exact records actually removed, including IDs, original journal
+ownership, reading dates, input, passages, notes, provenance, and both creation and
+update timestamps. Recovery does not count as an edit, so timestamps are unchanged.
+Readings added afterward are preserved. Restoration is atomic: if an original
+journal is gone or any ID has been reused, nothing is restored or overwritten and
+the interface explains the problem. Temporary recovery exists only in the deleting
+tab; it is not persistent Trash or part of exported backups. A future Trash feature
+should use a single shared deletion record for Undo and Trash restoration, consuming
+it atomically on either restoration.

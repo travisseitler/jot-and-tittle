@@ -371,3 +371,110 @@ test("creating a reading for a missing journal is rejected", async () => {
     false,
   );
 });
+
+test("Undo restores exact deleted records and timestamps, with distinct consecutive opportunities", async () => {
+  const a = {
+    ...reading("undo-a"),
+    provenance: { source: "import", originalId: "source-record" },
+  };
+  const b = reading("undo-b");
+  await repository.putReading(a, null);
+  await repository.putReading(b, null);
+  const first = await repository.deleteReading(a.id, a.updatedAt);
+  const second = await repository.deleteReading(b.id, b.updatedAt);
+  assert.notEqual(first.undo.id, second.undo.id);
+  await repository.putReading(reading("undo-new"), null);
+  await repository.undo(first.undo.id);
+  const restored = await repository.undo(second.undo.id);
+  assert.deepEqual(
+    restored.readings.find((r) => r.id === a.id),
+    a,
+  );
+  assert.deepEqual(
+    restored.readings.find((r) => r.id === b.id),
+    b,
+  );
+  assert.ok(restored.readings.some((r) => r.id === "undo-new"));
+  assert.equal(
+    deriveStats(restored.readings.filter((r) => [a.id, b.id].includes(r.id)))[
+      a.ranges[0].start
+    ].count,
+    2,
+  );
+  await assert.rejects(repository.undo(first.undo.id), /expired/);
+});
+
+test("clear Undo captures the latest stored complete set and preserves later additions", async () => {
+  await repository.putJournal(journal("undo-clear", "Undo clear"), null);
+  const a = reading("undo-clear-a", { journalId: "undo-clear" });
+  const b = reading("undo-clear-b", { journalId: "undo-clear" });
+  await repository.putReading(a, null);
+  await repository.putReading(b, null);
+  const changed = {
+    ...a,
+    notes: "concurrent edit",
+    updatedAt: "2026-10-05T12:00:00.000Z",
+  };
+  await repository.putReading(changed, a.updatedAt);
+  const cleared = await repository.resetJournal("undo-clear", [a.id, b.id]);
+  assert.equal(cleared.undo.count, 2);
+  await repository.putReading(
+    reading("undo-clear-new", { journalId: "undo-clear" }),
+    null,
+  );
+  const restored = await repository.undo(cleared.undo.id);
+  assert.deepEqual(
+    restored.readings.find((r) => r.id === a.id),
+    changed,
+  );
+  assert.deepEqual(
+    restored.readings.find((r) => r.id === b.id),
+    b,
+  );
+  assert.ok(restored.readings.some((r) => r.id === "undo-clear-new"));
+});
+
+test("Undo expiry is enforced by storage, even without UI timer delivery", async (t) => {
+  await repository.putReading(reading("undo-expiry"), null);
+  const deleted = await repository.deleteReading("undo-expiry", timestamp);
+  t.mock.method(Date, "now", () => deleted.undo.expiresAt);
+  await assert.rejects(repository.undo(deleted.undo.id), /expired/);
+  assert.equal(
+    (await repository.load()).readings.some((r) => r.id === "undo-expiry"),
+    false,
+  );
+});
+
+test("Undo fails atomically for a missing journal or concurrently reused ID", async () => {
+  await repository.putJournal(journal("undo-gone", "Undo gone"), null);
+  await repository.putReading(
+    reading("undo-orphan", { journalId: "undo-gone" }),
+    null,
+  );
+  const deleted = await repository.deleteReading("undo-orphan", timestamp);
+  await repository.deleteJournal("undo-gone");
+  await assert.rejects(
+    repository.undo(deleted.undo.id),
+    /original journal no longer exists/,
+  );
+  await repository.putReading(reading("undo-collision-a"), null);
+  await repository.putReading(reading("undo-collision-b"), null);
+  const cleared = await repository.resetJournal(DEFAULT_JOURNAL_ID, [
+    "undo-collision-a",
+    "undo-collision-b",
+  ]);
+  const winner = reading("undo-collision-b", {
+    notes: "another tab's new record",
+  });
+  await repository.putReading(winner, null);
+  await assert.rejects(repository.undo(cleared.undo.id), /same ID/);
+  const state = await repository.load();
+  assert.equal(
+    state.readings.some((r) => r.id === "undo-collision-a"),
+    false,
+  );
+  assert.deepEqual(
+    state.readings.find((r) => r.id === winner.id),
+    winner,
+  );
+});

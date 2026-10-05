@@ -54,7 +54,12 @@ import {
   type JournalState,
 } from "./journals";
 import { MetricLegend } from "./MetricLegend";
-import { ConflictError, repository, storageChannel } from "./storage";
+import {
+  ConflictError,
+  repository,
+  storageChannel,
+  type UndoOpportunity,
+} from "./storage";
 import { Heatmap } from "./Heatmap";
 import "./styles.css";
 const dateLocal = (date = new Date()) =>
@@ -104,6 +109,39 @@ function App() {
     [resetReadingIds, setResetReadingIds] = useState<string[]>([]),
     [about, setAbout] = useState(false),
     [conflict, setConflict] = useState<ReadingConflict | null>(null);
+  const [undos, setUndos] = useState<
+    (UndoOpportunity & { label: string; error?: string })[]
+  >([]);
+  const [undoNow, setUndoNow] = useState(Date.now());
+  useEffect(() => {
+    if (!undos.length) return;
+    const timer = setInterval(() => setUndoNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [undos.length]);
+  function offerUndo(undo: UndoOpportunity, label: string) {
+    setUndoNow(Date.now());
+    setUndos((entries) => [
+      ...entries.filter((entry) => entry.expiresAt > Date.now()),
+      { ...undo, label },
+    ]);
+  }
+  async function undoDeletion(id: string) {
+    if (saving) return;
+    setSaving(true);
+    try {
+      applyState(await repository.undo(id));
+      setUndos((entries) => entries.filter((entry) => entry.id !== id));
+      setToast("Readings restored.");
+    } catch (e) {
+      setUndos((entries) =>
+        entries.map((entry) =>
+          entry.id === id ? { ...entry, error: (e as Error).message } : entry,
+        ),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
   const [journals, setJournals] = useState<Journal[]>([defaultJournal()]),
     [activeJournalId, setActiveJournalId] = useState(DEFAULT_JOURNAL_ID),
     [journalDialog, setJournalDialog] = useState(false),
@@ -515,7 +553,7 @@ function App() {
           repository.deleteReading(confirmDelete.id, confirmDelete.updatedAt),
         (state) => {
           applyState(state);
-          setToast("Reading deleted.");
+          offerUndo(state.undo, "Reading deleted.");
           setConflict(null);
           setConfirmDelete(null);
         },
@@ -536,7 +574,7 @@ function App() {
           ),
         (state) => {
           applyState(state);
-          setToast("Reading deleted.");
+          offerUndo(state.undo, "Reading deleted.");
           setConflict(null);
           setConfirmDelete(null);
         },
@@ -551,7 +589,10 @@ function App() {
         () => repository.resetJournal(activeJournalId, resetReadingIds),
         (state) => {
           applyState(state);
-          setToast(`“${currentJournal.name}” readings cleared.`);
+          offerUndo(
+            state.undo,
+            `“${currentJournal.name}” readings cleared (${state.undo.count}).`,
+          );
         },
       )
     ) {
@@ -727,6 +768,44 @@ function App() {
             </button>
           </div>
         </header>
+        {undos.length > 0 && (
+          <aside className="undo-notices" aria-label="Reading recovery">
+            {undos.map((entry) => (
+              <div className="undo-notice" key={entry.id}>
+                <span role="status">
+                  {entry.label}{" "}
+                  {entry.expiresAt > undoNow
+                    ? `Undo available for ${Math.ceil((entry.expiresAt - undoNow) / 1000)}s.`
+                    : "Undo expired."}
+                </span>
+                {entry.expiresAt > undoNow && (
+                  <button
+                    disabled={saving}
+                    onClick={() => undoDeletion(entry.id)}
+                  >
+                    Undo
+                  </button>
+                )}
+                <button
+                  aria-label={`Dismiss: ${entry.label}`}
+                  onClick={() =>
+                    setUndos((entries) =>
+                      entries.filter((item) => item.id !== entry.id),
+                    )
+                  }
+                >
+                  Dismiss
+                </button>
+                {entry.error && <p role="alert">{entry.error}</p>}
+              </div>
+            ))}
+            <p>
+              30-second recovery, in this tab only. Navigation keeps Undo;
+              reload or closing this tab ends it.
+            </p>
+          </aside>
+        )}
+
         <div className="content">
           <div className="journal-context">
             <span>

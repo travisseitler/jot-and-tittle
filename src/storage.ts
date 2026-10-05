@@ -37,6 +37,35 @@ export class ConflictError extends Error {
   }
 }
 
+export const UNDO_DURATION_MS = 30_000;
+export interface UndoOpportunity {
+  id: string;
+  expiresAt: number;
+  count: number;
+}
+type UndoState = JournalState & { undo: UndoOpportunity };
+const recovery = new Map<
+  string,
+  { opportunity: UndoOpportunity; readings: JournalReading[] }
+>();
+function remember(readings: JournalReading[]): UndoOpportunity {
+  for (const [id, entry] of recovery)
+    if (entry.opportunity.expiresAt <= Date.now()) recovery.delete(id);
+  const opportunity = {
+    id: crypto.randomUUID(),
+    expiresAt: Date.now() + UNDO_DURATION_MS,
+    count: readings.length,
+  };
+  recovery.set(opportunity.id, { opportunity, readings });
+  const timer = setTimeout(
+    () => recovery.delete(opportunity.id),
+    UNDO_DURATION_MS,
+  );
+  // Node tests should not remain running solely for a recovery cleanup timer.
+  (timer as unknown as { unref?: () => void }).unref?.();
+  return opportunity;
+}
+
 export interface ReadingRepository {
   load(): Promise<JournalState>;
   selectJournal(id: string): Promise<void>;
@@ -44,16 +73,15 @@ export interface ReadingRepository {
     reading: JournalReading,
     expectedUpdatedAt: string | null,
   ): Promise<JournalState>;
-  deleteReading(id: string, expectedUpdatedAt: string): Promise<JournalState>;
+  deleteReading(id: string, expectedUpdatedAt: string): Promise<UndoState>;
+  undo(id: string): Promise<JournalState>;
   putJournal(
     journal: Journal,
     expectedUpdatedAt: string | null,
   ): Promise<JournalState>;
   deleteJournal(id: string): Promise<JournalState>;
-  resetJournal(journalId: string, readingIds: string[]): Promise<JournalState>;
-  mergeImport(
-    incoming: JournalImport,
-  ): Promise<{
+  resetJournal(journalId: string, readingIds: string[]): Promise<UndoState>;
+  mergeImport(incoming: JournalImport): Promise<{
     state: JournalState;
     addedReadings: number;
     addedJournals: number;
@@ -265,6 +293,49 @@ export const repository: ReadingRepository = {
       }
       tx.objectStore("readings").delete(id);
       await commit(tx);
+      return { ...(await readState(db)), undo: remember([stored]) };
+    }, true);
+  },
+
+  async undo(id) {
+    return withDb(async (db) => {
+      const entry = recovery.get(id);
+      if (!entry || entry.opportunity.expiresAt <= Date.now()) {
+        recovery.delete(id);
+        throw new Error(
+          "Undo expired. The 30-second recovery window has ended.",
+        );
+      }
+      const tx = db.transaction(
+        ["readings", "journals", "settings"],
+        "readwrite",
+      );
+      const readings = tx.objectStore("readings");
+      const journals = tx.objectStore("journals");
+      for (const reading of entry.readings) {
+        if (!(await req(journals.get(reading.journalId)))) {
+          tx.abort();
+          throw new Error(
+            "Undo cannot restore these readings because their original journal no longer exists.",
+          );
+        }
+        if (await req(readings.get(reading.id))) {
+          tx.abort();
+          throw new Error(
+            "Undo cannot restore these readings because a reading with the same ID now exists. No records were overwritten.",
+          );
+        }
+      }
+      // Recheck after waiting for the transaction's lock and validation.
+      if (entry.opportunity.expiresAt <= Date.now() || !recovery.has(id)) {
+        tx.abort();
+        throw new Error(
+          "Undo expired. The 30-second recovery window has ended.",
+        );
+      }
+      for (const reading of entry.readings) readings.add(reading);
+      await commit(tx);
+      recovery.delete(id);
       return readState(db);
     }, true);
   },
@@ -362,13 +433,17 @@ export const repository: ReadingRepository = {
         tx.abort();
         throw new ConflictError("journal-missing", journalId);
       }
+      const deleted: JournalReading[] = [];
       for (const id of readingIds) {
         const stored = (await req(readings.get(id))) as
           JournalReading | undefined;
-        if (stored && stored.journalId === journalId) readings.delete(id);
+        if (stored && stored.journalId === journalId) {
+          deleted.push(stored);
+          readings.delete(id);
+        }
       }
       await commit(tx);
-      return readState(db);
+      return { ...(await readState(db)), undo: remember(deleted) };
     }, true);
   },
 

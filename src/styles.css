@@ -1953,3 +1953,31 @@ canvas {
 .conflict-actions {
   flex-wrap: wrap;
 }
+
+.undo-notices {
+  position: relative;
+  margin: 16px 24px;
+  max-width: 640px;
+  max-height: 40vh;
+  overflow: auto;
+  z-index: 1;
+  background: #f8faf2;
+  border: 1px solid #344d27;
+  border-radius: 7px;
+  padding: 12px;
+  box-shadow: 0 5px 30px #27321d25;
+  font-size: 12px;
+}
+.undo-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.undo-notice p {
+  width: 100%;
+}
+.undo-notices > p {
+  margin: 8px 0 0;
+}
