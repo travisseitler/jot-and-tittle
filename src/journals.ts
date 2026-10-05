@@ -16,7 +16,14 @@ export interface Journal {
 export interface JournalReading extends Reading {
   journalId: string;
 }
+export interface TrashEntry {
+  id: string;
+  deletedAt: string;
+  expiresAt: string;
+  readings: JournalReading[];
+}
 export interface JournalState {
+  trash?: TrashEntry[];
   journals: Journal[];
   readings: JournalReading[];
   activeJournalId: string;
@@ -83,6 +90,10 @@ export function serializeJournals(
   };
 }
 export function deserializeJournals(input: unknown): JournalImport {
+  if (input && typeof input === "object" && "trash" in input)
+    throw new Error(
+      "Backups do not support Trash. Restore deleted readings before exporting them.",
+    );
   const x = input as ReturnType<typeof serializeJournals>;
   if (x?.version === 1)
     return {
