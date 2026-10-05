@@ -28,7 +28,12 @@ export function MetricLegend({ metric }: { metric: string }) {
       <span className="combined-key">
         <span>Older</span>
         {combinedPalette[2].map((color, i) => (
-          <i key={i} style={{ background: color }} title={recencyLabels[i]} />
+          <i
+            key={i}
+            style={{ background: color }}
+            title={recencyLabels[i]}
+            aria-label={recencyLabels[i]}
+          />
         ))}
         <span>Recent</span>
       </span>
@@ -53,17 +58,22 @@ export function MetricLegend({ metric }: { metric: string }) {
             known times count elapsed hours. Today and the past 24 hours share
             the freshest color.
           </p>
+          <p>
+            Small cells and neighboring hues can be difficult to distinguish,
+            especially with color-vision differences. Use the text inspector for
+            exact counts and dates, or choose Recency or Frequency separately.
+          </p>
           <table>
             <caption>Recency → · Frequency ↓</caption>
             <thead>
               <tr>
                 <th scope="col">Readings</th>
                 {[
-                  "> 1 yr",
-                  "3–12 mo",
-                  "1–3 mo",
-                  "7–30 d",
-                  "1–7 d",
+                  "365+ d",
+                  "90–364 d",
+                  "30–89 d",
+                  "7–29 d",
+                  "1–6 d",
                   "Today / <24 h",
                 ].map((label, i) => (
                   <th key={label} scope="col" title={recencyLabels[i]}>

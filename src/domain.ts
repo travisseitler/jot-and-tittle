@@ -429,11 +429,11 @@ export function sampleReadings(): Reading[] {
 // Recency changes hue (dry brown to fresh green); frequency changes lightness.
 // Keep the two channels independent, with neutral gray reserved for unrecorded verses.
 export const recencyLabels = [
-  "Over a year",
-  "3–12 months",
-  "1–3 months",
-  "7–30 days",
-  "1–7 days",
+  "365+ days",
+  "90–364 days",
+  "30–89 days",
+  "7–29 days",
+  "1–6 days",
   "Today / within 24 hours",
 ];
 export const frequencyLabels = [
@@ -444,12 +444,12 @@ export const frequencyLabels = [
   "25–49 readings",
   "50+ readings",
 ];
-const leafHues = [28, 43, 63, 82, 102, 119];
-const leafLightness = [80, 69, 58, 48, 38, 29];
+const leafHues = [28, 45, 63, 85, 110, 145];
+const leafLightness = [70, 60, 50, 41, 32, 24];
 export const combinedPalette = leafLightness.map((lightness, frequency) =>
   leafHues.map(
     (hue, recency) =>
-      `hsl(${hue} ${26 + recency * 2 + frequency}% ${lightness}%)`,
+      `hsl(${hue} ${46 + recency * 3 + frequency * 2}% ${lightness}%)`,
   ),
 );
 export function metricColor(

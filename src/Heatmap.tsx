@@ -98,27 +98,50 @@ export function Heatmap({
     ctx.scale(dpr, dpr);
     if (hover === null) return;
     const b = books[verses[hover].book];
-    ctx.strokeStyle = "#577541";
-    ctx.lineWidth = 0.65;
+    // Trace the outer book boundary in the gaps, leaving every metric fill visible.
     const start = Math.max(b.start, scope.start),
       end = Math.min(b.end, scope.end);
-    for (let id = start; id <= end; id++) {
-      const i = id - offset;
-      ctx.strokeRect(
-        (i % columns) * stride - 0.3,
-        Math.floor(i / columns) * stride - 0.3,
-        stride - 0.4,
-        stride - 0.4,
-      );
+    const firstRow = Math.floor((start - offset) / columns),
+      lastRow = Math.floor((end - offset) / columns);
+    ctx.strokeStyle = "#172915";
+    ctx.lineWidth = 0.6;
+    for (let row = firstRow; row <= lastRow; row++) {
+      const left = row === firstRow ? (start - offset) % columns : 0;
+      const right = row === lastRow ? ((end - offset) % columns) + 1 : columns;
+      const x = left * stride - 0.5,
+        y = row * stride - 0.5,
+        length = (right - left) * stride;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + stride);
+      ctx.moveTo(x + length, y);
+      ctx.lineTo(x + length, y + stride);
+      if (row === firstRow) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + length, y);
+      }
+      if (row === lastRow) {
+        ctx.moveTo(x, y + stride);
+        ctx.lineTo(x + length, y + stride);
+      }
+      ctx.stroke();
     }
     const i = hover - offset;
-    ctx.strokeStyle = "#172915";
-    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(
-      (i % columns) * stride - 1,
-      Math.floor(i / columns) * stride - 1,
-      stride + 1,
-      stride + 1,
+      (i % columns) * stride - 1.5,
+      Math.floor(i / columns) * stride - 1.5,
+      stride + 2,
+      stride + 2,
+    );
+    ctx.strokeStyle = "#172915";
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(
+      (i % columns) * stride - 0.5,
+      Math.floor(i / columns) * stride - 0.5,
+      stride,
+      stride,
     );
   }, [hover, width, layout, zoom, scope.start, scope.end]);
   function inspect(id: number) {
