@@ -1,3 +1,4 @@
+import { migrateReadingDate } from "./domain";
 import { exportFingerprint, type BackupRecord } from "./backup";
 import {
   DEFAULT_JOURNAL_ID,
@@ -111,7 +112,7 @@ export const storageChannel = () =>
 
 const connect = () =>
   new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open("jot-and-tittle", 2);
+    const request = indexedDB.open("jot-and-tittle", 3);
     request.onupgradeneeded = (event) => {
       const db = request.result;
       const tx = request.transaction!;
@@ -127,6 +128,16 @@ const connect = () =>
           const entry = cursor.result;
           if (entry) {
             entry.update(migrateLegacyReadings([entry.value])[0]);
+            entry.continue();
+          }
+        };
+      }
+      if (event.oldVersion === 2) {
+        const cursor = tx.objectStore("readings").openCursor();
+        cursor.onsuccess = () => {
+          const entry = cursor.result;
+          if (entry) {
+            entry.update(migrateReadingDate(entry.value));
             entry.continue();
           }
         };

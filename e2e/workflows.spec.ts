@@ -87,7 +87,7 @@ test("export, previewed merge, duplicates and journal-local reset preserve unrel
   const download = await downloading;
   const backup = await readFile((await download.path())!, "utf8");
   const parsed = JSON.parse(backup);
-  expect(parsed.version).toBe(2);
+  expect(parsed.version).toBe(3);
   expect(parsed.journals).toHaveLength(2);
   expect(parsed.readings).toHaveLength(2);
   await clear(page);
