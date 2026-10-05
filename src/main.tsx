@@ -112,6 +112,8 @@ function App() {
     (UndoOpportunity & { label: string; error?: string })[]
   >([]);
   const [transfer, setTransfer] = useState<Reading | null>(null);
+  const [transferMode, setTransferMode] = useState("move");
+  const [copyId, setCopyId] = useState("");
   const [destination, setDestination] = useState("");
   const [transferError, setTransferError] = useState("");
   const [backup, setBackup] = useState<JournalState["backup"]>();
@@ -1234,12 +1236,27 @@ function App() {
                       disabled={sample}
                       aria-label={`Move ${r.originalInput}`}
                       onClick={() => {
+                        setTransferMode("move");
                         setTransfer(r);
                         setDestination("");
                         setTransferError("");
                       }}
                     >
                       <ArrowRight size={16} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      disabled={sample}
+                      aria-label={`Copy ${r.originalInput}`}
+                      onClick={() => {
+                        setTransferMode("copy");
+                        setCopyId(crypto.randomUUID());
+                        setTransfer(r);
+                        setDestination("");
+                        setTransferError("");
+                      }}
+                    >
+                      <Layers size={16} />
                     </button>
                     <button
                       className="icon-btn"
@@ -1907,10 +1924,19 @@ function App() {
         </Dialog>
       )}
       {transfer && (
-        <Dialog title="Move reading" onClose={() => setTransfer(null)}>
+        <Dialog
+          title={transferMode === "copy" ? "Copy reading" : "Move reading"}
+          onClose={() => setTransfer(null)}
+        >
           <p>
-            Move {transfer.originalInput} to another journal. The reading keeps
-            its identity, date, passages, and notes.
+            {transferMode === "copy" ? "Copy" : "Move"} {transfer.originalInput}{" "}
+            to another journal. The reading keeps its identity, date, passages,
+            and notes.
+          </p>
+          <p>
+            Copies share one encounter across journals. Changing a copy’s date
+            or passages starts a new encounter. Same-journal copies are
+            disabled.
           </p>
           <label>
             Destination journal
@@ -1938,14 +1964,25 @@ function App() {
               setSaving(true);
               try {
                 applyState(
-                  await repository.moveReading(
-                    transfer.id,
-                    transfer.updatedAt,
-                    destination,
-                  ),
+                  await (transferMode === "copy"
+                    ? repository.copyReading(
+                        transfer.id,
+                        transfer.updatedAt,
+                        destination,
+                        copyId,
+                      )
+                    : repository.moveReading(
+                        transfer.id,
+                        transfer.updatedAt,
+                        destination,
+                      )),
                 );
                 setTransfer(null);
-                setToast("Reading moved.");
+                setToast(
+                  transferMode === "copy"
+                    ? "Reading copied."
+                    : "Reading moved.",
+                );
               } catch (e) {
                 setTransferError(
                   e instanceof ConflictError
@@ -1957,7 +1994,7 @@ function App() {
               }
             }}
           >
-            Move reading
+            {transferMode === "copy" ? "Copy reading" : "Move reading"}
           </button>
         </Dialog>
       )}

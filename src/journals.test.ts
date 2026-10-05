@@ -507,3 +507,72 @@ test("moves preserve identity and reject stale or unavailable destinations", asy
     1,
   );
 });
+
+test("copy chains retain encounter identity, interchange, and independent edits", async () => {
+  const original = reading("copy-source");
+  await repository.putReading(original, null);
+  await repository.putJournal(journal("copy-target", "Copy target"), null);
+  await repository.copyReading(
+    original.id,
+    timestamp,
+    "copy-target",
+    "copy-one",
+  );
+  const copy = (await repository.load()).readings.find(
+    (r) => r.id === "copy-one",
+  )!;
+  assert.equal(copy.encounterId, original.id);
+  assert.equal(copy.notes, original.notes);
+  await repository.copyReading(
+    copy.id,
+    copy.updatedAt,
+    DEFAULT_JOURNAL_ID,
+    "copy-two",
+  );
+  assert.equal(
+    (await repository.load()).readings.find((r) => r.id === "copy-two")!
+      .encounterId,
+    original.id,
+  );
+  await assert.rejects(
+    repository.copyReading(original.id, timestamp, "copy-target", "copy-one"),
+  );
+  await assert.rejects(
+    repository.copyReading(
+      original.id,
+      timestamp,
+      DEFAULT_JOURNAL_ID,
+      "same-copy",
+    ),
+  );
+  await repository.deleteReading(original.id, timestamp);
+  const state = await repository.load();
+  assert.equal(
+    deserializeJournals(
+      serializeJournals(state.journals, state.readings),
+    ).readings.find((r) => r.id === copy.id)!.encounterId,
+    original.id,
+  );
+  await repository.putReading(
+    { ...copy, notes: "Independent", updatedAt: "2026-10-06T00:00:00Z" },
+    copy.updatedAt,
+  );
+  const changed = (await repository.load()).readings.find(
+    (r) => r.id === copy.id,
+  )!;
+  assert.equal(changed.encounterId, original.id);
+  await repository.putReading(
+    {
+      ...changed,
+      startedAt: "2026-10-03",
+      datePrecision: "date",
+      updatedAt: "2026-10-07T00:00:00Z",
+    },
+    changed.updatedAt,
+  );
+  assert.notEqual(
+    (await repository.load()).readings.find((r) => r.id === copy.id)!
+      .encounterId,
+    original.id,
+  );
+});

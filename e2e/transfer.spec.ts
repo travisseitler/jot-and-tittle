@@ -27,3 +27,28 @@ test("move preserves a reading across journals and reload", async ({
     page.getByRole("button", { name: "Edit John 3:16", exact: true }),
   ).toHaveCount(1);
 });
+
+test("copy keeps original and survives reload", async ({ page }) => {
+  await open(page);
+  await log(page, "John 3:16");
+  await createJournal(page, "Copies");
+  await page.getByLabel("Current journal").selectOption("journal-default");
+  await history(page);
+  await page
+    .getByRole("button", { name: "Copy John 3:16", exact: true })
+    .click();
+  await page
+    .getByLabel("Destination journal")
+    .selectOption({ label: "Copies" });
+  await page.getByRole("button", { name: "Copy reading", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Edit John 3:16", exact: true }),
+  ).toHaveCount(1);
+  await page.getByLabel("Current journal").selectOption({ label: "Copies" });
+  await page.reload();
+  await history(page);
+  await expect(
+    page.getByRole("button", { name: "Edit John 3:16", exact: true }),
+  ).toHaveCount(1);
+});
