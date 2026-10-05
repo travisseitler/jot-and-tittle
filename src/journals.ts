@@ -1,4 +1,6 @@
 import {
+  deriveStats,
+  mergeRanges,
   serialize,
   deserialize,
   migrateReadingDate,
@@ -228,4 +230,28 @@ export function describeConflict(kind: string) {
     default:
       return "Another tab changed this record before it could be saved.";
   }
+}
+
+export function aggregateStats(readings: JournalReading[]) {
+  const encounters = new Map<string, JournalReading>();
+  for (const reading of readings) {
+    const key = reading.encounterId || reading.id;
+    const existing = encounters.get(key);
+    if (existing)
+      existing.ranges = mergeRanges([...existing.ranges, ...reading.ranges]);
+    else encounters.set(key, { ...reading, ranges: [...reading.ranges] });
+  }
+  return deriveStats([...encounters.values()]);
+}
+export function journalScopeIds(
+  journals: Journal[],
+  mode: string,
+  destination: string,
+  selected: string[],
+) {
+  return mode === "all"
+    ? journals.filter((j) => !j.archived).map((j) => j.id)
+    : mode === "selected"
+      ? selected.filter((id) => journals.some((j) => j.id === id))
+      : [destination];
 }

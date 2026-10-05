@@ -5,6 +5,8 @@ import { parsePassage, deriveStats, serialize } from "./domain";
 import {
   DEFAULT_JOURNAL_ID,
   defaultJournal,
+  aggregateStats,
+  journalScopeIds,
   journalReadings,
   validateJournalName,
   serializeJournals,
@@ -713,5 +715,59 @@ test("retention cleanup uses deletion time and leaves active readings alone", as
       ...serializeJournals(cleaned.journals, cleaned.readings),
       trash: [],
     }),
+  );
+});
+
+test("aggregate counting unions copies per encounter while independent identical encounters count separately", () => {
+  const a = reading("aggregate-a");
+  const copy = {
+    ...a,
+    id: "aggregate-copy",
+    journalId: "sermons",
+    encounterId: a.id,
+  };
+  const separate = { ...a, id: "aggregate-b", journalId: "sermons" };
+  const verse = a.ranges[0].start;
+  assert.equal(aggregateStats([a, copy, separate])[verse].count, 2);
+  assert.equal(deriveStats([a, copy, separate])[verse].count, 3);
+  assert.equal(aggregateStats([copy, separate])[verse].count, 2);
+  const edited = { ...copy, encounterId: "edited" };
+  assert.equal(aggregateStats([a, edited, separate])[verse].count, 3);
+  assert.equal(
+    aggregateStats(
+      deserializeJournals(
+        serializeJournals(basic().journals, [a, copy, separate]),
+      ).readings,
+    )[verse].count,
+    2,
+  );
+});
+test("all scopes follow active journals while selected scopes stay fixed and may include archives", () => {
+  const journals = [
+    ...basic().journals,
+    { ...journal("archive", "Archive"), archived: true },
+  ];
+  assert.deepEqual(journalScopeIds(journals, "all", DEFAULT_JOURNAL_ID, []), [
+    DEFAULT_JOURNAL_ID,
+    "sermons",
+  ]);
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, [
+      "archive",
+      "missing",
+    ]),
+    ["archive"],
+  );
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, []),
+    [],
+  );
+  journals.push(journal("new", "New"));
+  assert.ok(
+    journalScopeIds(journals, "all", DEFAULT_JOURNAL_ID, []).includes("new"),
+  );
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, ["sermons"]),
+    ["sermons"],
   );
 });
