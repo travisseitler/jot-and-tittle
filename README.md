@@ -34,6 +34,14 @@ Host the contents of `dist/` on any static web host, or serve that directory loc
 - Explicitly separated read-only sample dataset; personal history starts empty.
 - Validated, merge-preview JSON import, JSON export, local reset, source download.
 
+## Project website
+
+The custom Jekyll project site lives in the
+[`travisseitler.github.io` repository](https://github.com/travisseitler/travisseitler.github.io/tree/main/jot-and-tittle),
+with a homepage, getting-started guide, and privacy information. See its README
+for local preview, customization, and GitHub Pages publishing instructions. The
+site introduces the project; the React journal app is built and hosted separately.
+
 ## Architecture
 
 `src/domain.ts` contains Scripture identity, parser, normalized ranges, derived statistics, metric buckets, and interchange validation. Verse indices are zero-based internally; exported identities are OSIS strings. Canon and versification are data identities, not implicit row counts. `src/journals.ts` defines journal ownership, names, backwards-compatible interchange, and merge planning. `src/storage.ts` defines the repository boundary and IndexedDB schema version 2; migration creates Journal and assigns existing readings to it in the upgrade transaction. Journal, reading, and selected-journal changes are committed atomically. `src/Heatmap.tsx` uses a base canvas and separate hover overlay; coordinate hit testing is mathematical. `src/main.tsx` contains the application workflows. Metadata is `src/canon.json`; cell styling is independent of readings.
