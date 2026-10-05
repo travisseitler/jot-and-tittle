@@ -193,25 +193,49 @@ export function mergeRanges(ranges: Range[]): Range[] {
 }
 export function parsePassage(input: string): Range[] {
   if (!input.trim()) throw new Error("Enter a passage to continue.");
-  const parts = input.replace(/[–—]/g, "-").split(";");
-  let previous: number | null = null;
-  const ranges = parts.map((part) => {
-    if (!part.trim()) throw new Error("Add a passage after the semicolon.");
-    const ends = part.trim().split("-");
-    if (ends.length > 2)
-      throw new Error(
-        "Use one dash per range and semicolons between passages.",
-      );
-    const a = endpoint(ends[0], previous, false);
-    previous = a.book;
-    const z =
-      ends.length === 2
-        ? endpoint(ends[1], a.book, true, a.hasVerse ? a.chapter : null)
-        : endpoint(ends[0], previous, true);
-    if (z.index < a.index)
-      throw new Error("The end of a passage must follow its beginning.");
-    return { start: a.index, end: z.index };
-  });
+  const groups = input
+    .replace(/[‐‑‒–—−]/g, "-")
+    .replace(/\s*:\s*/g, ":")
+    .split(";");
+  let previousBook: number | null = null;
+  const ranges: Range[] = [];
+  for (const group of groups) {
+    if (!group.trim()) throw new Error("Add a passage after the semicolon.");
+    let context: ReturnType<typeof endpoint> | null = null;
+    for (const part of group.split(",")) {
+      if (!part.trim())
+        throw new Error(
+          "Add a reference after the comma; trailing or empty items are not allowed.",
+        );
+      const ends = part.trim().split("-");
+      if (ends.length > 2)
+        throw new Error(
+          "Use one dash per range and commas or semicolons between references.",
+        );
+      if (ends.some((end) => !end.trim()))
+        throw new Error("A range needs a reference on both sides of the dash.");
+      if (context && context.chapter === null && /^\d+$/.test(ends[0].trim()))
+        throw new Error(
+          "Shorthand after a whole book is ambiguous. Include the book and chapter, such as John 3.",
+        );
+      const inheritedChapter: number | null = context?.hasVerse
+        ? context.chapter
+        : null;
+      const fallbackBook: number | null = context?.book ?? previousBook;
+      const a = endpoint(ends[0], fallbackBook, false, inheritedChapter);
+      const z: ReturnType<typeof endpoint> =
+        ends.length === 2
+          ? endpoint(ends[1], a.book, true, a.hasVerse ? a.chapter : null)
+          : endpoint(ends[0], fallbackBook, true, inheritedChapter);
+      if (z.index < a.index)
+        throw new Error(
+          "The end of a passage must follow its beginning. Bare numbers after a verse mean verses; write chapter:verse or repeat the book for a chapter.",
+        );
+      ranges.push({ start: a.index, end: z.index });
+      context = z;
+      previousBook = a.book;
+    }
+  }
   return mergeRanges(ranges);
 }
 export function reference(id: number) {

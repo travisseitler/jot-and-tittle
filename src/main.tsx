@@ -1991,7 +1991,9 @@ function App() {
               />
             </label>
             <small className="field-help">
-              Book names or abbreviations. Separate passages with semicolons.
+              Book names or abbreviations. Commas inherit verse context (John
+              3:16, 18–21) or chapter context (John 3, 5). Repeat the book or
+              use a semicolon to start chapters after verses.
             </small>
             {input && (
               <div
