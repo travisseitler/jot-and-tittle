@@ -1,0 +1,383 @@
+[
+  {
+    "condition": "normal",
+    "minFrequencyLuminanceDrop": 0.0443,
+    "minLightRecordedToGrayDeltaE76": 27.61,
+    "difficultAdjacentRecencyPairs": []
+  },
+  {
+    "condition": "protan",
+    "minFrequencyLuminanceDrop": 0.0378,
+    "minLightRecordedToGrayDeltaE76": 20.97,
+    "difficultAdjacentRecencyPairs": [
+      {
+        "frequency": "1 reading",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 0.83
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 0.83
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.15
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.3
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.33
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.69
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.1
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.39
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 0.88
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.11
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 0.69
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 0.86
+      }
+    ]
+  },
+  {
+    "condition": "deutan",
+    "minFrequencyLuminanceDrop": 0.0485,
+    "minLightRecordedToGrayDeltaE76": 15.59,
+    "difficultAdjacentRecencyPairs": [
+      {
+        "frequency": "1 reading",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 9.26
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 8.53
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 3.01
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 3.21
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 4.03
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 3.53
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 5.1
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 3.42
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 4.55
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 3.03
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 10
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 9.13
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 3.89
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 2.6
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 8.16
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 7.43
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 3.21
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 2.18
+      }
+    ]
+  },
+  {
+    "condition": "tritan",
+    "minFrequencyLuminanceDrop": 0.0438,
+    "minLightRecordedToGrayDeltaE76": 10.29,
+    "difficultAdjacentRecencyPairs": [
+      {
+        "frequency": "1 reading",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 9.71
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 9.86
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 4.95
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 4.16
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 3.5
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 3.01
+      }
+    ]
+  },
+  {
+    "condition": "grayscale",
+    "minFrequencyLuminanceDrop": 0.0443,
+    "minLightRecordedToGrayDeltaE76": 6.33,
+    "difficultAdjacentRecencyPairs": [
+      {
+        "frequency": "1 reading",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 5.52
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 5.31
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.46
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.51
+      },
+      {
+        "frequency": "1 reading",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 0.51
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 7.69
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 7.46
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.93
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.64
+      },
+      {
+        "frequency": "2–4 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 0.83
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 9.92
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 9.77
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 2.35
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.46
+      },
+      {
+        "frequency": "5–9 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 1.23
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 8.71
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 8.56
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 2.1
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.3
+      },
+      {
+        "frequency": "10–24 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 1.05
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 7.35
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 7.19
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.79
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 1.12
+      },
+      {
+        "frequency": "25–49 readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 0.86
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["365+ days", "90–364 days"],
+        "deltaE76": 5.99
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["90–364 days", "30–89 days"],
+        "deltaE76": 5.84
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 1.49
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["7–29 days", "1–6 days"],
+        "deltaE76": 0.95
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["1–6 days", "Today / within 24 hours"],
+        "deltaE76": 0.67
+      }
+    ]
+  },
+  {
+    "condition": "washed-out",
+    "minFrequencyLuminanceDrop": 0.0517,
+    "minLightRecordedToGrayDeltaE76": 18.86,
+    "difficultAdjacentRecencyPairs": [
+      {
+        "frequency": "1 reading",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 8.51
+      },
+      {
+        "frequency": "50+ readings",
+        "pair": ["30–89 days", "7–29 days"],
+        "deltaE76": 8.87
+      }
+    ]
+  }
+]
