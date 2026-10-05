@@ -115,6 +115,7 @@ function App() {
     [confirmDelete, setConfirmDelete] = useState<Reading | null>(null),
     [confirmReset, setConfirmReset] = useState(false),
     [resetReadingIds, setResetReadingIds] = useState<string[]>([]),
+    [resetJournal, setResetJournal] = useState<Journal | null>(null),
     [about, setAbout] = useState(false),
     [conflict, setConflict] = useState<ReadingConflict | null>(null);
   const [undos, setUndos] = useState<
@@ -131,6 +132,9 @@ function App() {
   >({});
   const [purgeEntry, setPurgeEntry] = useState<TrashEntry | null>(null);
   const [trashError, setTrashError] = useState("");
+  const [inspectText, setInspectText] = useState("");
+  const [inspectError, setInspectError] = useState("");
+  const [inspectedVerse, setInspectedVerse] = useState(0);
   const [backup, setBackup] = useState<JournalState["backup"]>();
   const [hasUnexportedChanges, setHasUnexportedChanges] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -186,6 +190,9 @@ function App() {
     viewJournalId,
     selectedJournalIds,
   );
+  const destinationJournal =
+    journals.find((j) => j.id === activeJournalId) || journals[0];
+  const destinationReadings = journalReadings(allReadings, activeJournalId);
   const currentJournal =
     journals.find((j) => j.id === viewJournalId) || journals[0];
   const readings = useMemo(
@@ -241,7 +248,7 @@ function App() {
         return false;
       }
       setError(
-        "Your change could not be saved. Your existing journals and readings have been kept. Check browser storage permissions.",
+        `Your change could not be saved. Your existing journals and readings have been kept. ${e instanceof Error ? e.message : "Check browser storage permissions."}`,
       );
       return false;
     } finally {
@@ -311,25 +318,6 @@ function App() {
     const t = setTimeout(() => setToast(""), 4500);
     return () => clearTimeout(t);
   }, [toast]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (conflict) {
-          setConflict(null);
-          return;
-        }
-        setModal(false);
-        setSelected(null);
-        setAbout(false);
-        setImportPreview(null);
-        setConfirmDelete(null);
-        setConfirmReset(false);
-        setJournalDialog(false);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [conflict]);
   const [timeNow, setTimeNow] = useState(Date.now());
   const today = dateLocal(new Date(timeNow));
   const timeContext = clockContext(timeNow);
@@ -408,6 +396,11 @@ function App() {
       : chapter === "all"
         ? books[+book]
         : books[+book].chapters[+chapter - 1]);
+  useEffect(
+    () =>
+      setInspectedVerse((id) => Math.max(scope.start, Math.min(scope.end, id))),
+    [scope.start, scope.end],
+  );
   const viewed = stats.slice(scope.start, scope.end + 1),
     covered = viewed.filter((s) => s.count).length,
     total = viewed.length,
@@ -710,7 +703,11 @@ function App() {
   async function confirmResetJournal() {
     if (
       await runWrite(
-        () => repository.resetJournal(activeJournalId, resetReadingIds),
+        () =>
+          repository.resetJournal(
+            resetJournal?.id || activeJournalId,
+            resetReadingIds,
+          ),
         (state) => {
           applyState(state);
           offerUndo(
@@ -822,6 +819,7 @@ function App() {
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
+              aria-current={page === id ? "page" : undefined}
               className={`nav-item ${page === id ? "active" : ""}`}
               onClick={() => setPage(id)}
             >
@@ -1274,6 +1272,7 @@ function App() {
                   <div className="layout-controls">
                     <div className="segmented compact">
                       <button
+                        aria-pressed={layout === "continuous"}
                         className={layout === "continuous" ? "chosen" : ""}
                         onClick={() => setLayout("continuous")}
                         title="Responsive, continuous flow"
@@ -1281,6 +1280,7 @@ function App() {
                         <Grid2X2 size={13} /> Flow
                       </button>
                       <button
+                        aria-pressed={layout === "fixed-grid"}
                         className={layout === "fixed-grid" ? "chosen" : ""}
                         onClick={() => setLayout("fixed-grid")}
                         title="Stable, 160-column canonical grid"
@@ -1335,7 +1335,11 @@ function App() {
                       metric={metric}
                       layout={layout}
                       zoom={zoom}
-                      onSelect={setSelected}
+                      onInspect={setInspectedVerse}
+                      onSelect={(id) => {
+                        setInspectedVerse(id);
+                        setSelected(id);
+                      }}
                     />
                   )}
                 </div>
@@ -1345,6 +1349,74 @@ function App() {
                     <span className="footer-separator">·</span> Hover to find
                     your place
                   </span>
+                  <section
+                    className="text-inspector"
+                    aria-label="Textual verse inspection"
+                  >
+                    <h3>Inspect a verse</h3>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        try {
+                          const ranges = parsePassage(inspectText);
+                          if (rangeCount(ranges) !== 1)
+                            throw new Error(
+                              "Enter one verse, such as John 3:16.",
+                            );
+                          setInspectedVerse(ranges[0].start);
+                          setSelected(ranges[0].start);
+                          setInspectError("");
+                        } catch (e) {
+                          setInspectError((e as Error).message);
+                        }
+                      }}
+                    >
+                      <label>
+                        Verse reference
+                        <input
+                          value={inspectText}
+                          onChange={(e) => setInspectText(e.target.value)}
+                          placeholder="John 3:16"
+                        />
+                      </label>
+                      <button>Inspect verse</button>
+                    </form>
+                    {inspectError && <p role="alert">{inspectError}</p>}
+                    <p role="status" aria-live="polite">
+                      {reference(inspectedVerse)} ·{" "}
+                      {stats[inspectedVerse].count} recorded readings ·{" "}
+                      {stats[inspectedVerse].last
+                        ? `Last read ${formatDate(stats[inspectedVerse].last!)}`
+                        : unfilteredStats[inspectedVerse].count
+                          ? "No readings in this period"
+                          : "Never recorded"}
+                    </p>
+                    <button
+                      disabled={inspectedVerse <= scope.start}
+                      onClick={() =>
+                        setInspectedVerse((id) => Math.max(scope.start, id - 1))
+                      }
+                    >
+                      Previous verse
+                    </button>
+                    <button
+                      disabled={inspectedVerse >= scope.end}
+                      onClick={() =>
+                        setInspectedVerse((id) => Math.min(scope.end, id + 1))
+                      }
+                    >
+                      Next verse
+                    </button>
+                    <button onClick={() => setSelected(inspectedVerse)}>
+                      Open inspected verse details
+                    </button>
+                    <p>
+                      Arrow keys on the map inspect verses; Home and End jump to
+                      the scope boundaries. Enter or tap opens details. Text
+                      inspection provides the same counts and dates without
+                      using the map.
+                    </p>
+                  </section>
                   <MetricLegend metric={metric} />
                 </div>
               </section>
@@ -1452,6 +1524,9 @@ function App() {
                       {formatDate(r.startedAt)}
                     </div>
                     <div className="history-passage">
+                      <span>
+                        {journals.find((j) => j.id === r.journalId)?.name}
+                      </span>
                       <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
                       <small>
                         {pretty(rangeCount(r.ranges))} unique verses
@@ -1849,15 +1924,17 @@ function App() {
                 <div>
                   <h2>Clear this journal</h2>
                   <p>
-                    Remove all {readings.length} readings from “
-                    {currentJournal.name}”. Your other journals stay intact.
+                    Remove all {destinationReadings.length} readings from “
+                    {destinationJournal.name}”. Your other journals stay intact.
                     Export a backup first if you want to keep these readings.
                   </p>
                 </div>
                 <button
                   className="danger-outline"
+                  disabled={readOnly || sample || saving}
                   onClick={() => {
-                    setResetReadingIds(readings.map((r) => r.id));
+                    setResetJournal(destinationJournal);
+                    setResetReadingIds(destinationReadings.map((r) => r.id));
                     setConfirmReset(true);
                   }}
                 >
@@ -1894,8 +1971,15 @@ function App() {
           onClose={() => setModal(false)}
         >
           <p className="dialog-intro">
-            Recording in <strong>{currentJournal.name}</strong>. A chapter, a
-            verse, or a few passages.
+            Recording in{" "}
+            <strong>
+              {
+                journals.find(
+                  (j) => j.id === (editing?.journalId || activeJournalId),
+                )?.name
+              }
+            </strong>
+            . A chapter, a verse, or a few passages.
           </p>
           <form onSubmit={saveReading}>
             <label className="field-label">
@@ -1911,6 +1995,7 @@ function App() {
             </small>
             {input && (
               <div
+                role={parsed.error ? "alert" : "status"}
                 className={
                   parsed.error ? "parse-preview invalid" : "parse-preview"
                 }
@@ -2015,7 +2100,10 @@ function App() {
               .map((r) => (
                 <div key={r.id}>
                   <span>{formatDate(r.startedAt)}</span>
-                  <small>{r.ranges.map(rangeLabel).join("; ")}</small>
+                  <small>
+                    {journals.find((j) => j.id === r.journalId)?.name} ·{" "}
+                    {r.ranges.map(rangeLabel).join("; ")}
+                  </small>
                 </div>
               ))}
           </div>
@@ -2219,7 +2307,7 @@ function App() {
           title={
             confirmDelete
               ? "Delete this reading?"
-              : `Clear “${currentJournal.name}”?`
+              : `Clear “${resetJournal?.name || destinationJournal.name}”?`
           }
           onClose={() => {
             setConfirmDelete(null);
@@ -2589,6 +2677,24 @@ function App() {
     </div>
   );
 }
+const dialogStack: HTMLElement[] = [];
+const originalInert = new Map<HTMLElement, boolean>();
+let originalOverflow = "";
+function syncDialogs() {
+  const top = dialogStack.at(-1);
+  const host = top?.parentElement;
+  if (top)
+    for (const child of Array.from(host?.children || [])) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (!originalInert.has(child)) originalInert.set(child, child.inert);
+      child.inert = child !== top;
+    }
+  else {
+    for (const [child, value] of originalInert) child.inert = value;
+    originalInert.clear();
+    document.body.style.overflow = originalOverflow;
+  }
+}
 function Dialog({
   title,
   onClose,
@@ -2602,15 +2708,31 @@ function Dialog({
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
-    const bodyOverflow = document.body.style.overflow;
+    const backdrop = root.current!.parentElement!;
+    if (!dialogStack.length) originalOverflow = document.body.style.overflow;
+    dialogStack.push(backdrop);
     document.body.style.overflow = "hidden";
+    syncDialogs();
     const focus =
-      root.current?.querySelector<HTMLElement>("input,textarea,select") ||
-      root.current?.querySelector<HTMLElement>("button");
+      root.current?.querySelector<HTMLElement>(
+        'input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled)',
+      ) ||
+      root.current?.querySelector<HTMLElement>("button:not(:disabled)") ||
+      root.current;
     focus?.focus();
     return () => {
-      document.body.style.overflow = bodyOverflow;
-      previous?.focus();
+      const index = dialogStack.indexOf(backdrop);
+      if (index >= 0) dialogStack.splice(index, 1);
+      syncDialogs();
+      if (previous?.isConnected && !previous.closest("[inert]"))
+        previous.focus();
+      else
+        (
+          dialogStack
+            .at(-1)
+            ?.querySelector<HTMLElement>("button:not(:disabled)") ||
+          document.querySelector<HTMLElement>("header button:not(:disabled)")
+        )?.focus();
     };
   }, []);
   return (
@@ -2624,13 +2746,20 @@ function Dialog({
         className="dialog"
         ref={root}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+            return;
+          }
           if (e.key === "Tab") {
             const elements = Array.from(
               root.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input,textarea,select,[tabindex="0"]',
+                'button:not(:disabled),input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
               ) || [],
             );
             const first = elements[0],
