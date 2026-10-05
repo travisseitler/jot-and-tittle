@@ -1981,3 +1981,41 @@ canvas {
 .undo-notices > p {
   margin: 8px 0 0;
 }
+
+/* Keyboard focus uses shape and a contrasting double outline. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+canvas:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #172915;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px #fff;
+}
+.text-inspector {
+  padding: 1rem;
+  border-top: 1px solid #b7c3ab;
+}
+.text-inspector form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+.text-inspector button {
+  margin: 0.3rem;
+}
+.text-inspector input {
+  max-width: 100%;
+}
+fieldset {
+  border: 1px solid #b7c3ab;
+  padding: 0.6rem;
+}
+fieldset label {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0.35rem;
+}

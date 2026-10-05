@@ -18,6 +18,7 @@ export function Heatmap({
   layout,
   zoom,
   onSelect,
+  onInspect,
 }: {
   scope: Range;
   stats: Stats[];
@@ -27,6 +28,7 @@ export function Heatmap({
   layout: string;
   zoom: number;
   onSelect: (id: number) => void;
+  onInspect?: (id: number) => void;
 }) {
   const wrapper = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement>(null),
@@ -121,9 +123,21 @@ export function Heatmap({
   }, [hover, width, layout, zoom, scope.start, scope.end]);
   function inspect(id: number) {
     const bounded = Math.max(scope.start, Math.min(scope.end, id));
+    onInspect?.(bounded);
     setFocus(bounded);
     setHover(bounded);
     const i = bounded - offset;
+    const x = (i % columns) * stride,
+      y = Math.floor(i / columns) * stride;
+    const container = wrapper.current;
+    if (container) {
+      if (x < container.scrollLeft) container.scrollLeft = x;
+      else if (x + stride > container.scrollLeft + container.clientWidth)
+        container.scrollLeft = x + stride - container.clientWidth;
+      if (y < container.scrollTop) container.scrollTop = y;
+      else if (y + stride > container.scrollTop + container.clientHeight)
+        container.scrollTop = y + stride - container.clientHeight;
+    }
     setPoint({
       x: (i % columns) * stride,
       y: Math.floor(i / columns) * stride,
@@ -149,6 +163,9 @@ export function Heatmap({
             if (e.key in deltas) {
               e.preventDefault();
               inspect(focus + deltas[e.key]);
+            } else if (e.key === "Home" || e.key === "End") {
+              e.preventDefault();
+              inspect(e.key === "Home" ? scope.start : scope.end);
             } else if (e.key === "Enter") {
               e.preventDefault();
               onSelect(focus);
@@ -173,7 +190,7 @@ export function Heatmap({
             if (id !== null) onSelect(id);
           }}
         />
-        <canvas className="overlay" ref={overlay} />
+        <canvas className="overlay" ref={overlay} aria-hidden="true" />
         {hover !== null && (
           <div
             className="map-tooltip"
