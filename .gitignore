@@ -24,10 +24,3 @@ __MACOSX/
 .AppleDouble
 .LSOverride
 Icon[]
-
-# Jekyll project site
-docs/_site/
-docs/.jekyll-cache/
-docs/.jekyll-metadata
-docs/.bundle/
-_site/
