@@ -77,6 +77,12 @@ export interface ReadingRepository {
     reading: JournalReading,
     expectedUpdatedAt: string | null,
   ): Promise<JournalState>;
+  copyReading(
+    id: string,
+    expectedUpdatedAt: string,
+    destination: string,
+    copyId: string,
+  ): Promise<JournalState>;
   moveReading(
     id: string,
     expectedUpdatedAt: string,
@@ -321,8 +327,64 @@ export const repository: ReadingRepository = {
             reading,
           );
         }
-        readings.put(reading);
+        const changedEncounter =
+          stored.startedAt !== reading.startedAt ||
+          JSON.stringify(stored.ranges) !== JSON.stringify(reading.ranges);
+        readings.put({
+          ...reading,
+          ...(changedEncounter
+            ? { encounterId: crypto.randomUUID() }
+            : stored.encounterId
+              ? { encounterId: stored.encounterId }
+              : {}),
+        });
       }
+      await commit(tx);
+      return readState(db);
+    }, true);
+  },
+
+  async copyReading(id, expectedUpdatedAt, destination, copyId) {
+    return withDb(async (db) => {
+      const tx = db.transaction(
+        ["readings", "journals", "settings"],
+        "readwrite",
+      );
+      const store = tx.objectStore("readings");
+      const source = (await req(store.get(id))) as JournalReading | undefined;
+      if (!source || source.updatedAt !== expectedUpdatedAt) {
+        tx.abort();
+        throw new ConflictError(
+          source ? "reading-updated" : "reading-deleted",
+          id,
+          source,
+        );
+      }
+      const target = await req(tx.objectStore("journals").get(destination));
+      if (!target) {
+        tx.abort();
+        throw new ConflictError("journal-missing", destination);
+      }
+      if (source.journalId === destination) {
+        tx.abort();
+        throw new Error(
+          "Choose another journal; same-journal copies are disabled.",
+        );
+      }
+      const existing = await req(store.get(copyId));
+      if (existing) {
+        tx.abort();
+        throw new ConflictError("reading-exists", copyId, existing);
+      }
+      const now = new Date().toISOString();
+      store.add({
+        ...source,
+        id: copyId,
+        encounterId: source.encounterId || source.id,
+        journalId: destination,
+        createdAt: now,
+        updatedAt: now,
+      });
       await commit(tx);
       return readState(db);
     }, true);

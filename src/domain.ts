@@ -16,6 +16,7 @@ export interface Range {
   end: number;
 }
 export interface Reading {
+  encounterId?: string;
   id: string;
   startedAt: string;
   datePrecision?: "date" | "instant";
@@ -350,7 +351,13 @@ export function deserialize(input: unknown): Reading[] {
       !r.ranges.length
     )
       throw new Error("A reading is missing its passage or notes.");
+    if (
+      r.encounterId !== undefined &&
+      (typeof r.encounterId !== "string" || !r.encounterId.trim())
+    )
+      throw new Error("Invalid encounter identity.");
     return {
+      ...(r.encounterId ? { encounterId: r.encounterId } : {}),
       id: r.id,
       originalInput: r.originalInput,
       notes: r.notes,
