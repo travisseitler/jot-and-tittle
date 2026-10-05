@@ -155,11 +155,15 @@ function App() {
     [journalEditing, setJournalEditing] = useState<Journal | null>(null),
     [journalName, setJournalName] = useState(""),
     [journalError, setJournalError] = useState("");
+  const [manageJournals, setManageJournals] = useState(false);
+  const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
+  const readOnly = !!archivedViewId;
+  const viewJournalId = archivedViewId || activeJournalId;
   const currentJournal =
-    journals.find((j) => j.id === activeJournalId) || journals[0];
+    journals.find((j) => j.id === viewJournalId) || journals[0];
   const readings = useMemo(
-    () => journalReadings(allReadings, activeJournalId),
-    [allReadings, activeJournalId],
+    () => journalReadings(allReadings, viewJournalId),
+    [allReadings, viewJournalId],
   );
   const currentState: JournalState = {
     journals,
@@ -173,6 +177,9 @@ function App() {
   function applyState(state: JournalState) {
     setBackup(state.backup);
     setHasUnexportedChanges(state.hasUnexportedChanges ?? true);
+    setArchivedViewId((id) =>
+      state.journals.some((j) => j.id === id && j.archived) ? id : null,
+    );
     setReadings(state.readings);
     setJournals(state.journals);
     setActiveJournalId(state.activeJournalId);
@@ -365,6 +372,7 @@ function App() {
     };
   }
   async function switchJournal(id: string) {
+    setArchivedViewId(null);
     if (saving || !storageReady || id === activeJournalId) return;
     setSaving(true);
     try {
@@ -424,7 +432,7 @@ function App() {
     }
   }
   function openLog(r: Reading | null = null, prefill = "") {
-    if (!storageReady) return;
+    if (!storageReady || readOnly) return;
     setSample(false);
     setEditing(r);
     setEditingUpdatedAt(r?.updatedAt || null);
@@ -691,11 +699,13 @@ function App() {
               disabled={!storageReady || saving}
               onChange={(e) => switchJournal(e.target.value)}
             >
-              {journals.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.name}
-                </option>
-              ))}
+              {journals
+                .filter((j) => !j.archived)
+                .map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.name}
+                  </option>
+                ))}
             </select>
           </label>
           <button
@@ -833,6 +843,17 @@ function App() {
         )}
 
         <div className="content">
+          {readOnly && (
+            <p role="status">
+              Archived journal · read-only.{" "}
+              <button onClick={() => setManageJournals(true)}>
+                Manage journals
+              </button>
+              <button onClick={() => setArchivedViewId(null)}>
+                Return to active journal
+              </button>
+            </p>
+          )}
           <div className="journal-context">
             <span>
               <BookOpen size={13} />
@@ -1233,7 +1254,7 @@ function App() {
                     </div>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={sample || readOnly}
                       aria-label={`Move ${r.originalInput}`}
                       onClick={() => {
                         setTransferMode("move");
@@ -1246,7 +1267,7 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={sample || readOnly}
                       aria-label={`Copy ${r.originalInput}`}
                       onClick={() => {
                         setTransferMode("copy");
@@ -1260,7 +1281,7 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={sample || readOnly}
                       aria-label={`Edit ${r.originalInput}`}
                       onClick={() => openLog(r)}
                     >
@@ -1268,7 +1289,7 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={sample || readOnly}
                       aria-label={`Delete ${r.originalInput}`}
                       onClick={() => setConfirmDelete(r)}
                     >
@@ -1460,6 +1481,15 @@ function App() {
                   </button>
                 </section>
               </div>
+              <section className="panel">
+                <h2>Journals</h2>
+                <button
+                  className="secondary"
+                  onClick={() => setManageJournals(true)}
+                >
+                  Manage journals
+                </button>
+              </section>
               <section className="panel">
                 <h2>About this reading space</h2>
                 <dl className="data-details">
@@ -1996,6 +2026,53 @@ function App() {
           >
             {transferMode === "copy" ? "Copy reading" : "Move reading"}
           </button>
+        </Dialog>
+      )}
+      {manageJournals && (
+        <Dialog
+          title="Manage journals"
+          onClose={() => setManageJournals(false)}
+        >
+          <p>
+            Archived journals keep their history and exports. Restore them
+            before changing readings.
+          </p>
+          {journals.map((j) => (
+            <div key={j.id}>
+              <strong>
+                {j.name} {j.archived ? "(archived)" : "(active)"}
+              </strong>
+              {j.archived && (
+                <button
+                  onClick={() => {
+                    setArchivedViewId(j.id);
+                    setManageJournals(false);
+                    setPage("history");
+                  }}
+                >
+                  Inspect {j.name}
+                </button>
+              )}
+              {j.id !== DEFAULT_JOURNAL_ID && (
+                <button
+                  disabled={saving}
+                  onClick={async () => {
+                    await runWrite(
+                      () =>
+                        repository.archiveJournal(
+                          j.id,
+                          j.updatedAt,
+                          !j.archived,
+                        ),
+                      applyState,
+                    );
+                  }}
+                >
+                  {j.archived ? "Restore" : "Archive"} {j.name}
+                </button>
+              )}
+            </div>
+          ))}
         </Dialog>
       )}
       {journalDialog && (

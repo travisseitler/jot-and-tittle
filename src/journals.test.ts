@@ -576,3 +576,49 @@ test("copy chains retain encounter identity, interchange, and independent edits"
     original.id,
   );
 });
+
+test("archiving preserves history, excludes writes, restores identity and round trips", async () => {
+  await repository.putJournal(journal("archive-test", "Archive test"), null);
+  const r = reading("archive-reading", { journalId: "archive-test" });
+  await repository.putReading(r, null);
+  const archived = await repository.archiveJournal(
+    "archive-test",
+    timestamp,
+    true,
+  );
+  assert.equal(archived.activeJournalId, DEFAULT_JOURNAL_ID);
+  assert.ok(archived.readings.some((x) => x.id === r.id));
+  await assert.rejects(
+    repository.putReading(
+      reading("archive-new", { journalId: "archive-test" }),
+      null,
+    ),
+  );
+  await assert.rejects(
+    repository.moveReading(
+      "copy-two",
+      (await repository.load()).readings.find((r) => r.id === "copy-two")!
+        .updatedAt,
+      "archive-test",
+    ),
+  );
+  await assert.rejects(repository.putReading({ ...r, notes: "no" }, timestamp));
+  await assert.rejects(repository.selectJournal("archive-test"));
+  await assert.rejects(
+    repository.archiveJournal(DEFAULT_JOURNAL_ID, timestamp, true),
+  );
+  const j = archived.journals.find((j) => j.id === "archive-test")!;
+  assert.equal(
+    deserializeJournals(
+      serializeJournals(archived.journals, archived.readings),
+    ).journals.find((x) => x.id === j.id)!.archived,
+    true,
+  );
+  await assert.rejects(repository.archiveJournal(j.id, timestamp, false));
+  const restored = await repository.archiveJournal(j.id, j.updatedAt, false);
+  assert.equal(restored.journals.find((x) => x.id === j.id)!.archived, false);
+  assert.deepEqual(
+    restored.readings.find((x) => x.id === r.id),
+    r,
+  );
+});
