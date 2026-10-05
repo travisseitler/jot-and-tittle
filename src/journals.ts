@@ -7,6 +7,7 @@ import {
 } from "./domain";
 export const DEFAULT_JOURNAL_ID = "journal-default";
 export interface Journal {
+  archived?: boolean;
   id: string;
   name: string;
   createdAt: string;
@@ -118,7 +119,12 @@ export function deserializeJournals(input: unknown): JournalImport {
     for (const d of [j.createdAt, j.updatedAt])
       if (typeof d !== "string" || !Number.isFinite(Date.parse(d)))
         throw new Error("A journal contains an invalid date.");
+    if (j.archived !== undefined && typeof j.archived !== "boolean")
+      throw new Error("Invalid archive status.");
+    if (j.id === DEFAULT_JOURNAL_ID && j.archived)
+      throw new Error("The default Journal cannot be archived.");
     journals.push({
+      ...(j.archived !== undefined ? { archived: j.archived } : {}),
       id: j.id,
       name,
       createdAt: new Date(j.createdAt).toISOString(),

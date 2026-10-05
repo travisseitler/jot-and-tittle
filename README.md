@@ -97,3 +97,5 @@ IndexedDB upgrades and v1/v2 imports migrate unmarked legacy timestamps to their
 Readings can be moved from History to another journal. Same-journal moves are disabled. Moves preserve record identity and content and detect concurrent edits or destination removal.
 
 History offers Copy to another journal. Each copy gets a new record ID and timestamps but preserves its date, passages, input, notes, and durable encounter ID (the original record ID for older readings). Copying a copy preserves that identity. Notes edits and moves preserve it; changing date or passages creates a new encounter. Same-journal copying is disabled. Individual journals count each record; aggregate views count each encounter once per verse.
+
+Manage journals in Your data to archive or restore non-default journals. Archives keep their identity, names, history, and export status. Inspect opens read-only history; restore before logging, editing, deleting, moving, copying, or merging new readings into an existing archive. Archiving the current destination switches to Journal. Older journals are active by default; JSON preserves archive status.
