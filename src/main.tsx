@@ -111,6 +111,9 @@ function App() {
   const [undos, setUndos] = useState<
     (UndoOpportunity & { label: string; error?: string })[]
   >([]);
+  const [transfer, setTransfer] = useState<Reading | null>(null);
+  const [destination, setDestination] = useState("");
+  const [transferError, setTransferError] = useState("");
   const [backup, setBackup] = useState<JournalState["backup"]>();
   const [hasUnexportedChanges, setHasUnexportedChanges] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -1229,6 +1232,18 @@ function App() {
                     <button
                       className="icon-btn"
                       disabled={sample}
+                      aria-label={`Move ${r.originalInput}`}
+                      onClick={() => {
+                        setTransfer(r);
+                        setDestination("");
+                        setTransferError("");
+                      }}
+                    >
+                      <ArrowRight size={16} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      disabled={sample}
                       aria-label={`Edit ${r.originalInput}`}
                       onClick={() => openLog(r)}
                     >
@@ -1889,6 +1904,61 @@ function App() {
               {confirmDelete ? "Delete reading" : "Clear journal readings"}
             </button>
           </div>
+        </Dialog>
+      )}
+      {transfer && (
+        <Dialog title="Move reading" onClose={() => setTransfer(null)}>
+          <p>
+            Move {transfer.originalInput} to another journal. The reading keeps
+            its identity, date, passages, and notes.
+          </p>
+          <label>
+            Destination journal
+            <select
+              aria-label="Destination journal"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+            >
+              <option value="">Choose a journal</option>
+              {journals
+                .filter((j) => j.id !== transfer.journalId)
+                .map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          {transferError && <p role="alert">{transferError}</p>}
+          <button
+            className="primary"
+            disabled={!destination || saving}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(
+                  await repository.moveReading(
+                    transfer.id,
+                    transfer.updatedAt,
+                    destination,
+                  ),
+                );
+                setTransfer(null);
+                setToast("Reading moved.");
+              } catch (e) {
+                setTransferError(
+                  e instanceof ConflictError
+                    ? describeConflict(e.kind)
+                    : (e as Error).message,
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Move reading
+          </button>
         </Dialog>
       )}
       {journalDialog && (

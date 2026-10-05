@@ -479,3 +479,31 @@ test("Undo fails atomically for a missing journal or concurrently reused ID", as
     winner,
   );
 });
+
+test("moves preserve identity and reject stale or unavailable destinations", async () => {
+  const original = reading("move-test");
+  await repository.putReading(original, null);
+  await repository.putJournal(journal("move-target", "Move target"), null);
+  await repository.moveReading(original.id, timestamp, DEFAULT_JOURNAL_ID);
+  assert.deepEqual(
+    (await repository.load()).readings.find((r) => r.id === original.id),
+    original,
+  );
+  await assert.rejects(repository.moveReading(original.id, timestamp, "gone"));
+  const moved = (
+    await repository.moveReading(original.id, timestamp, "move-target")
+  ).readings.find((r) => r.id === original.id)!;
+  assert.deepEqual(
+    { ...moved, journalId: original.journalId, updatedAt: original.updatedAt },
+    original,
+  );
+  assert.notEqual(moved.updatedAt, timestamp);
+  await assert.rejects(
+    repository.moveReading(original.id, timestamp, DEFAULT_JOURNAL_ID),
+  );
+  assert.equal(
+    (await repository.load()).readings.filter((r) => r.id === original.id)
+      .length,
+    1,
+  );
+});

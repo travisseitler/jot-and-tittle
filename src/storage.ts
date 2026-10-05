@@ -77,6 +77,11 @@ export interface ReadingRepository {
     reading: JournalReading,
     expectedUpdatedAt: string | null,
   ): Promise<JournalState>;
+  moveReading(
+    id: string,
+    expectedUpdatedAt: string,
+    destination: string,
+  ): Promise<JournalState>;
   deleteReading(id: string, expectedUpdatedAt: string): Promise<UndoState>;
   undo(id: string): Promise<JournalState>;
   putJournal(
@@ -318,6 +323,40 @@ export const repository: ReadingRepository = {
         }
         readings.put(reading);
       }
+      await commit(tx);
+      return readState(db);
+    }, true);
+  },
+
+  async moveReading(id, expectedUpdatedAt, destination) {
+    return withDb(async (db) => {
+      const tx = db.transaction(
+        ["readings", "journals", "settings"],
+        "readwrite",
+      );
+      const store = tx.objectStore("readings");
+      const stored = (await req(store.get(id))) as JournalReading | undefined;
+      if (!stored || stored.updatedAt !== expectedUpdatedAt) {
+        tx.abort();
+        throw new ConflictError(
+          stored ? "reading-updated" : "reading-deleted",
+          id,
+          stored,
+        );
+      }
+      const target = await req(tx.objectStore("journals").get(destination));
+      if (!target) {
+        tx.abort();
+        throw new ConflictError("journal-missing", destination);
+      }
+      if (stored.journalId !== destination)
+        store.put({
+          ...stored,
+          journalId: destination,
+          updatedAt: new Date(
+            Math.max(Date.now(), Date.parse(stored.updatedAt) + 1),
+          ).toISOString(),
+        });
       await commit(tx);
       return readState(db);
     }, true);
