@@ -47,6 +47,8 @@ import {
 import {
   DEFAULT_JOURNAL_ID,
   defaultJournal,
+  aggregateStats,
+  journalScopeIds,
   journalReadings,
   validateJournalName,
   deserializeJournals,
@@ -168,11 +170,21 @@ function App() {
   const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
   const readOnly = !!archivedViewId;
   const viewJournalId = archivedViewId || activeJournalId;
+  const [journalScopeMode, setJournalScopeMode] = useState("single");
+  const [selectedJournalIds, setSelectedJournalIds] = useState<string[]>([
+    DEFAULT_JOURNAL_ID,
+  ]);
+  const scopeJournalIds = journalScopeIds(
+    journals,
+    archivedViewId ? "single" : journalScopeMode,
+    viewJournalId,
+    selectedJournalIds,
+  );
   const currentJournal =
     journals.find((j) => j.id === viewJournalId) || journals[0];
   const readings = useMemo(
-    () => journalReadings(allReadings, viewJournalId),
-    [allReadings, viewJournalId],
+    () => allReadings.filter((r) => scopeJournalIds.includes(r.journalId)),
+    [allReadings, scopeJournalIds.join("|")],
   );
   const currentState: JournalState = {
     journals,
@@ -318,7 +330,13 @@ function App() {
       [],
     ),
     active = sample ? demo : readings,
-    stats = useMemo(() => deriveStats(active), [active]),
+    stats = useMemo(
+      () =>
+        !archivedViewId && journalScopeMode !== "single" && !sample
+          ? aggregateStats(active)
+          : deriveStats(active),
+      [active, journalScopeMode, archivedViewId, sample],
+    ),
     sorted = useMemo(
       () =>
         [...active].sort((a, b) =>
@@ -442,7 +460,12 @@ function App() {
     }
   }
   function openLog(r: Reading | null = null, prefill = "") {
-    if (!storageReady || readOnly) return;
+    if (
+      !storageReady ||
+      readOnly ||
+      (r && journals.find((j) => j.id === r.journalId)?.archived)
+    )
+      return;
     setSample(false);
     setEditing(r);
     setEditingUpdatedAt(r?.updatedAt || null);
@@ -853,6 +876,55 @@ function App() {
         )}
 
         <div className="content">
+          <section className="panel" aria-label="Journal view scope">
+            <label>
+              View journals
+              <select
+                aria-label="View journals"
+                value={journalScopeMode}
+                onChange={(e) => setJournalScopeMode(e.target.value)}
+              >
+                <option value="single">Current journal</option>
+                <option value="all">All active journals</option>
+                <option value="selected">Selected journals</option>
+              </select>
+            </label>
+            {journalScopeMode === "selected" && (
+              <fieldset>
+                <legend>Journals to include (archives are read-only)</legend>
+                {journals.map((j) => (
+                  <label key={j.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedJournalIds.includes(j.id)}
+                      onChange={(e) =>
+                        setSelectedJournalIds((ids) =>
+                          e.target.checked
+                            ? [...ids, j.id]
+                            : ids.filter((id) => id !== j.id),
+                        )
+                      }
+                    />
+                    {j.name}
+                    {j.archived ? " (archived)" : ""}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            <p>
+              Viewing:{" "}
+              {scopeJournalIds
+                .map((id) => journals.find((j) => j.id === id)?.name)
+                .join(", ") || "No journals selected"}
+              . New readings go to{" "}
+              {journals.find((j) => j.id === activeJournalId)?.name}. Aggregate
+              metrics count each encounter once per verse; history shows each
+              journal record.
+            </p>
+            {!scopeJournalIds.length && (
+              <p role="status">Select at least one journal to see readings.</p>
+            )}
+          </section>
           {readOnly && (
             <p role="status">
               Archived journal · read-only.{" "}
@@ -1181,6 +1253,9 @@ function App() {
                         </span>
                         <div>
                           <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
+                          <span>
+                            {journals.find((j) => j.id === r.journalId)?.name}
+                          </span>
                           <small>
                             {formatDate(r.startedAt)} <span>·</span>{" "}
                             {pretty(rangeCount(r.ranges))} verses
@@ -1264,7 +1339,11 @@ function App() {
                     </div>
                     <button
                       className="icon-btn"
-                      disabled={sample || readOnly}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Move ${r.originalInput}`}
                       onClick={() => {
                         setTransferMode("move");
@@ -1277,7 +1356,11 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample || readOnly}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Copy ${r.originalInput}`}
                       onClick={() => {
                         setTransferMode("copy");
@@ -1291,7 +1374,11 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample || readOnly}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Edit ${r.originalInput}`}
                       onClick={() => openLog(r)}
                     >
@@ -1299,7 +1386,11 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample || readOnly}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Delete ${r.originalInput}`}
                       onClick={() => setConfirmDelete(r)}
                     >
