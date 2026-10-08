@@ -81,4 +81,4 @@ Apply the complete Verification contract and approval ledger in /private/tmp/jot
 
 ## Completed implementation
 
-All eight items implemented in eight separate commits on `codex/information-design`, after every persona explicitly approved v3. See [Review and verification](information-design-review.md) for initial opinions, ADHD scoring, review rounds, commits and observed evidence. This approval record describes the pre-implementation gate; the earlier synthesis statement about no app edits is historical.
+All eight items implemented in eight separate commits on `00046-information-design`, after every persona explicitly approved v3. See [Review and verification](information-design-review.md) for initial opinions, ADHD scoring, review rounds, commits and observed evidence. This approval record describes the pre-implementation gate; the earlier synthesis statement about no app edits is historical.
