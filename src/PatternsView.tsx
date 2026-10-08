@@ -7,12 +7,18 @@ const pretty = (n: number) => n.toLocaleString();
 export function PatternsView({
   stats,
   sessionCount,
+  sample,
+  hasReadings,
+  readOnly,
   deduplicatesEncounters,
   onExploreBook,
   onInspectVerse,
 }: {
   stats: Stats[];
   sessionCount: number;
+  sample: boolean;
+  hasReadings: boolean;
+  readOnly: boolean;
   deduplicatesEncounters: boolean;
   onExploreBook: (bookIndex: number) => void;
   onInspectVerse: (verseId: number) => void;
@@ -28,21 +34,38 @@ export function PatternsView({
       })),
     [stats],
   );
+  const bookCount = bookStats.filter((b) => b.read).length;
+  const revisitedCount = stats.filter((v) => v.count > 1).length;
   return (
     <>
       <section className="pattern-overview">
-        <h2>Where does your reading take you?</h2>
+        <h2>In this view</h2>
         <p>
           {sessionCount
-            ? `You’ve recorded ${sessionCount} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
-            : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
+            ? `${sample ? "This sample" : "This view"} contains ${sessionCount} reading ${sessionCount === 1 ? "session" : "sessions"} across ${bookCount} ${bookCount === 1 ? "book" : "books"}. ${revisitedCount} ${revisitedCount === 1 ? "verse has" : "verses have"} more than one counted reading.`
+            : readOnly
+              ? "No readings from this archived journal appear in this view. Return to active journal to view your current readings."
+              : hasReadings || sample
+                ? "No readings in this view. Choose View readings to change journals or dates."
+                : "Patterns emerge as you record readings. Log a passage, then return here to explore."}
         </p>
       </section>
       <p className="counting-rule">
-        {deduplicatesEncounters
-          ? "Frequencies deduplicate shared encounters; session totals count reading records."
-          : "Frequencies count reading records in this journal."}{" "}
-        Map geography does not limit Patterns.
+        {sample
+          ? "Verse counts reflect sample readings."
+          : deduplicatesEncounters
+            ? "Linked records of the same reading count once per verse in this view."
+            : "Verse counts include each reading saved in this journal."}{" "}
+        Reading sessions count each saved record. Patterns include all books in
+        the journals and dates you’re viewing; book and passage choices on the
+        map do not limit them.
+        {deduplicatesEncounters && (
+          <>
+            {" "}
+            One reading copied into two journals: one count per verse, two saved
+            records when both copies are in this view.
+          </>
+        )}
       </p>
       <section className="stats-row">
         <div className="stat">
@@ -53,20 +76,18 @@ export function PatternsView({
         <div className="stat">
           <div>REVISITED VERSES</div>
           <strong>{pretty(stats.filter((s) => s.count > 1).length)}</strong>
-          <span>Verses with frequency greater than one</span>
+          <span>Verses with more than one counted reading</span>
         </div>
         <div className="stat">
           <div>VERSE READINGS</div>
           <strong>{pretty(stats.reduce((a, s) => a + s.count, 0))}</strong>
-          <span>Sum of verse frequencies in this evidence view</span>
+          <span>Sum of verse counts in this view</span>
         </div>
       </section>
       <section className="panel">
         <div className="section-title">
           <h2>Where have you been reading?</h2>
-          <span className="muted">
-            Unique verses recorded · canonical order
-          </span>
+          <span className="muted">Unique verses recorded · Bible order</span>
         </div>
         <details className="book-breakdown">
           <summary>Explore all 66 books</summary>
@@ -103,7 +124,8 @@ export function PatternsView({
       <section className="panel return-panel">
         <h2>Places you return to</h2>
         <p className="muted">
-          The ten most frequently recorded verses. Ties follow canonical order.
+          Up to ten verses recorded more than once, ordered by frequency. Ties
+          follow Bible order.
         </p>
         {stats
           .map((s, i) => ({ ...s, i }))
@@ -124,7 +146,7 @@ export function PatternsView({
           ))}
         {!stats.some((s) => s.count > 1) && (
           <p className="muted">
-            Repeated readings will appear here as your history grows.
+            Verses recorded more than once will appear here.
           </p>
         )}
       </section>

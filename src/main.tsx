@@ -1548,11 +1548,11 @@ function App() {
                         )}
                       </div>
                       <p className="counting-rule">
-                        {!archivedViewId &&
-                        journalScopeMode !== "single" &&
-                        !sample
-                          ? "Counts deduplicate shared encounters across selected journals."
-                          : "Counts reflect reading records in this journal."}
+                        {sample
+                          ? "Verse counts reflect sample readings."
+                          : !archivedViewId && journalScopeMode !== "single"
+                            ? "Linked records of the same reading count once per verse in this view."
+                            : "Verse counts include each reading saved in this journal."}
                       </p>
                       <div className="map-footer">
                         <span>
@@ -1915,6 +1915,9 @@ function App() {
             <PatternsView
               stats={stats}
               sessionCount={active.length}
+              sample={sample}
+              hasReadings={allReadings.length > 0}
+              readOnly={readOnly}
               deduplicatesEncounters={
                 !archivedViewId && journalScopeMode !== "single" && !sample
               }
