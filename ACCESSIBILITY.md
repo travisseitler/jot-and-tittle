@@ -19,3 +19,25 @@ VoiceOver with Safari/Chrome on macOS and NVDA with Firefox on Windows have **no
 Remaining limitations: screen readers may reserve canvas arrow keys in browse mode; use the text inspector or switch to focus interaction. Mobile emulation is not physical-device certification. Large Trash batches list each stored reading and can be lengthy. Color alone does not identify exact metrics; inspect the textual counts and dates or use standalone metrics.
 
 Clear-journal confirmation identifies and snapshots the logging destination independently of the viewed aggregate scope. It keeps that destination stable if another tab changes selection, and read-only archive inspection disables clearing. Errors expose the actual persistence or destination failure while retaining existing data.
+
+## Disclosure and viewing controls
+
+View readings has a complete draft with Apply, Cancel, and Escape. Applied dates
+and journal filters stay visible when the panel closes. Map display and Go to
+passage are labeled disclosures with expanded state and controlled-region IDs.
+The textual verse inspector stays available below the map, independent of map
+settings. Reading details provide Edit; native More actions disclosures provide
+Move, Copy, and Delete. Example and archived readings expose no editing actions.
+
+The shared Dialog component skips controls inside closed disclosures when
+wrapping focus, prioritizes the passage field for recording, and preserves the
+existing inert background and focus-return behavior. Inline filter panels stay
+in normal document order on desktop and mobile. Essential working text uses a
+14px baseline; decorative captions are smaller. Coarse-pointer controls target
+44px height. These are product choices, not a claim of complete WCAG compliance.
+
+New browser checks cover draft cancellation, shared scope across pages, recording
+into another journal without changing the view, finding a filtered-out saved
+reading, consistent example context, and optional controls on narrow screens.
+Manual assistive-technology sessions and usability sessions with representative
+novice readers remain necessary before claiming research-validated usability.

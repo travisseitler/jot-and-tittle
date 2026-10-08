@@ -6,6 +6,9 @@ test("canvas metrics, scopes, layouts, zoom and keyboard inspection", async ({
   await open(page);
   await log(page);
   const canvas = page.getByRole("img", { name: /verse map/ });
+  await page
+    .getByRole("button", { name: "Go to passage", exact: true })
+    .click();
   await page.getByLabel("Focus on a passage").fill("Genesis 1:1–3");
   await page
     .getByRole("button", { name: "Focus passage", exact: true })
@@ -26,6 +29,7 @@ test("canvas metrics, scopes, layouts, zoom and keyboard inspection", async ({
   ]);
   const combined = await pixels();
   expect(combined[0]).not.toEqual(combined[1]);
+  await page.getByRole("button", { name: /Map display/ }).click();
   for (const metric of ["Recency", "Frequency"]) {
     await page.getByRole("button", { name: metric, exact: true }).click();
     await expect(canvas).toHaveAttribute(

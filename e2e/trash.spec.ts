@@ -1,3 +1,4 @@
+import { readingAction } from "./helpers";
 import { test, expect, open, log, history, data } from "./helpers";
 test("Trash persists through reload and restoration consumes immediate Undo", async ({
   page,
@@ -5,12 +6,14 @@ test("Trash persists through reload and restoration consumes immediate Undo", as
   await open(page);
   await log(page, "John 3:16", "Recover this");
   await history(page);
-  await page
-    .getByRole("button", { name: "Delete John 3:16", exact: true })
-    .click();
+  await readingAction(page, "Delete John 3:16");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete reading", exact: true })
+    .getByRole("button", {
+      name: "Delete reading",
+      exact: true,
+      includeHidden: true,
+    })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.reload();
@@ -26,19 +29,24 @@ test("Trash persists through reload and restoration consumes immediate Undo", as
   ).toBeVisible();
   await history(page);
   await expect(
-    page.getByRole("button", { name: "Edit John 3:16", exact: true }),
+    page.getByRole("button", {
+      name: "John 3:16",
+      exact: true,
+    }),
   ).toHaveCount(1);
 });
 test("permanent Trash deletion requires confirmation", async ({ page }) => {
   await open(page);
   await log(page, "John 3:16");
   await history(page);
-  await page
-    .getByRole("button", { name: "Delete John 3:16", exact: true })
-    .click();
+  await readingAction(page, "Delete John 3:16");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete reading", exact: true })
+    .getByRole("button", {
+      name: "Delete reading",
+      exact: true,
+      includeHidden: true,
+    })
     .click();
   await data(page);
   await page

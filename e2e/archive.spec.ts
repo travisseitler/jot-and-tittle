@@ -29,9 +29,11 @@ test("archive hides the destination and preserves read-only history through rest
   await page
     .getByRole("button", { name: "Inspect Sermons", exact: true })
     .click();
+  await page.locator(".reading-title").click();
   await expect(
-    page.getByRole("button", { name: "Edit John 3:16", exact: true }),
-  ).toBeDisabled();
+    page.getByRole("button", { name: "Edit reading", exact: true }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await page.reload();
   await data(page);
   await page
@@ -44,6 +46,9 @@ test("archive hides the destination and preserves read-only history through rest
   await page.getByLabel("Current journal").selectOption({ label: "Sermons" });
   await history(page);
   await expect(
-    page.getByRole("button", { name: "Edit John 3:16", exact: true }),
+    page.getByRole("button", {
+      name: "John 3:16",
+      exact: true,
+    }),
   ).toBeEnabled();
 });

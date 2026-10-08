@@ -1,3 +1,4 @@
+import { openClear } from "./helpers";
 import {
   test,
   expect,
@@ -32,6 +33,10 @@ test("keyboard map navigation keeps the last verse visible", async ({
   page,
 }) => {
   await open(page);
+  await page
+    .getByRole("button", { name: "Explore my empty map", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Map display/ }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   const canvas = page.getByRole("img", { name: /verse map/ });
@@ -60,6 +65,7 @@ test("new transfer and management dialogs close with Escape and restore their tr
     name: "Move Genesis 1:1",
     exact: true,
   });
+  await page.locator(".reading-actions summary").click();
   await trigger.focus();
   await trigger.press("Enter");
   await page.keyboard.press("Escape");
@@ -83,11 +89,13 @@ test("clear confirmation names and empties the destination when another journal 
   await log(page, "Genesis 1:1");
   await createJournal(page, "Sermons");
   await log(page, "John 3:16");
-  await page.getByLabel("View journals").selectOption("selected");
-  await data(page);
   await page
-    .getByRole("button", { name: "Clear journal readings", exact: true })
+    .getByRole("button", { name: "View readings", exact: true })
     .click();
+  await page.getByLabel("View journals").selectOption("selected");
+  await page.getByRole("button", { name: "Apply view", exact: true }).click();
+  await data(page);
+  await openClear(page);
   const dialog = page.getByRole("dialog", {
     name: "Clear “Sermons”?",
     exact: true,
@@ -100,6 +108,10 @@ test("clear confirmation names and empties the destination when another journal 
   await history(page);
   await expect(page.locator(".history-row")).toHaveCount(1);
   await expect(page.locator(".history-row")).toContainText("Genesis 1:1");
+  await page
+    .getByRole("button", { name: "View readings", exact: true })
+    .click();
   await page.getByLabel("View journals").selectOption("single");
+  await page.getByRole("button", { name: "Apply view", exact: true }).click();
   await expect(page.locator(".history-row")).toHaveCount(0);
 });

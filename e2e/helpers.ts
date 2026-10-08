@@ -35,6 +35,9 @@ export async function history(page: Page) {
 }
 export async function createJournal(page: Page, name: string) {
   await page
+    .getByRole("button", { name: "Manage journals", exact: true })
+    .click();
+  await page
     .getByRole("button", { name: "Create a journal", exact: true })
     .click();
   await page.getByLabel("Journal name").fill(name);
@@ -48,14 +51,60 @@ export async function createJournal(page: Page, name: string) {
 }
 export async function data(page: Page) {
   await page.getByRole("button", { name: "Your data", exact: true }).click();
+  const trash = page
+    .locator("details")
+    .filter({ has: page.locator("summary", { hasText: "Trash" }) });
+  if (!(await trash.evaluate((el) => (el as HTMLDetailsElement).open)))
+    await trash.locator("summary").click();
 }
 export async function clear(page: Page) {
-  await page
-    .getByRole("button", { name: "Clear journal readings", exact: true })
-    .click();
+  await openClear(page);
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Clear journal readings", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+}
+
+export async function readingAction(page: Page, name: string) {
+  if (name.startsWith("Edit ")) {
+    await page
+      .locator(".history-row")
+      .filter({ hasText: name.slice(5) })
+      .locator(".reading-title")
+      .click();
+    await page
+      .getByRole("button", { name: "Edit reading", exact: true })
+      .click();
+    return;
+  }
+  const button = page.getByRole("button", {
+    name,
+    exact: true,
+    includeHidden: true,
+  });
+  const details = button.locator("..");
+  if (await details.evaluate((el) => el.tagName !== "DETAILS")) {
+    await button.click();
+    return;
+  }
+  if (
+    !(await details.getAttribute("open")) &&
+    (await details.getAttribute("open")) !== ""
+  )
+    await details.locator("summary").click();
+  await button.click();
+}
+
+export async function openClear(page: Page) {
+  const name = await page
+    .getByLabel("Current journal")
+    .locator("option:checked")
+    .textContent();
+  await page
+    .getByRole("button", { name: "Manage journals", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: `Clear ${name} readings`, exact: true })
+    .click();
 }

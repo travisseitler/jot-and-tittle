@@ -125,6 +125,32 @@ You should now see Jot & Tittle. Choose **Log a reading**, enter a passage and
 date, optionally add notes, and choose **Save reading**. Your personal history
 starts empty; **Explore a sample map** lets you try the map first.
 
+### Find your way around
+
+**Log a reading** is always available. Its **Recording in** field tells you which
+journal will receive the reading; you can choose a different destination without
+changing the readings you are viewing.
+
+- **Verse map:** Choose a book, or open **Go to passage** to focus the map.
+  **Map display** holds the color mode, layout, and zoom controls. **Inspect a verse**
+  gives exact counts and dates without needing to click a square.
+- **Reading history:** Search your entries or open a passage/date to see its details
+  and edit it. Open **More actions** for Move, Copy, or Delete.
+- **Reading patterns:** Explore where you have been reading and the passages you
+  revisit. Expand **Explore all 66 books** for the full breakdown.
+- **Your data:** Export all journals, import a backup, or open Trash to recover
+  deleted readings. Software downloads and technical information are under About.
+
+On Map, History, and Patterns, **View readings** lets you choose dates and journals.
+**Apply view** updates the results; **Cancel** leaves them unchanged. Active filters
+remain visible, and **Reset view** returns to your current journal and all dates.
+These viewing choices never limit your backup: **Export all journals** includes
+all journals and their saved readings.
+
+Open **Manage journals** beside the journal name to create, rename, archive,
+restore, clear, or delete a journal. Archived journals can be inspected but must
+be restored before their readings can be changed.
+
 ### Stopping and returning later
 
 To stop the app, click in the terminal and press **Ctrl+C**. Stopping it does not

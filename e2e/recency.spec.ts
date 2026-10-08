@@ -32,6 +32,9 @@ for (const instant of [false, true])
       });
       await page.reload();
     }
+    await page
+      .getByRole("button", { name: "Go to passage", exact: true })
+      .click();
     await page.getByLabel("Focus on a passage").fill("Genesis 1:1–3");
     await page
       .getByRole("button", { name: "Focus passage", exact: true })

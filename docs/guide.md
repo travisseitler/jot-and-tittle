@@ -24,19 +24,21 @@ Open the local address printed in your terminal. No account, API key, or Bible-t
 
 ## Record what you read
 
-Start in **Journal**, or create a journal for a particular study or season. Log a passage such as `John 1:1–18` or `Psalm 23`. You can combine passages with semicolons and enter ranges that cross chapters or books. Add your reading date and optional notes.
+Start in **Journal**, or open **Manage journals** to create a journal for a particular study or season. Log a passage such as `John 1:1–18` or `Psalm 23`. You can combine passages with semicolons and enter ranges that cross chapters or books. Add your reading date and optional notes.
 
-The map gives each verse its own square. Overlapping passages in one reading count once. Use **Combined**, **Recency**, or **Frequency** to explore when you read a passage and how often you return.
+The map gives each verse its own square. Overlapping passages in one reading count once. Open **Map display** and choose **Combined**, **Recency**, or **Frequency** to explore when you read a passage and how often you return.
 
 ## Explore at your own pace
 
-Look across the full Bible, focus on a book or chapter, or enter a passage. Reading history lets you search, edit, and delete entries. The sample dataset is a separate, read-only example; your own history starts empty.
+Look across the full Bible, focus on a book or chapter, or enter a passage. Open **View readings** to choose dates and journals, then **Apply view**. **Cancel** keeps your previous view; **Reset view** removes its filters. Your recording destination is shown separately in the Log dialog.
+
+Reading history lets you search and open a passage or date for details and editing. **More actions** offers Move, Copy, and Delete. The map’s **Inspect a verse** field provides exact counts and dates without clicking a square. The sample dataset is a separate, read-only example; your own history starts empty.
 
 Jot & Tittle includes metadata for the 66-book Protestant canon with KJV verse numbering. It does not include Bible text, so keep using your preferred Bible alongside it.
 
 ## Keep a copy
 
-Export your journals and readings from **Your data**. Store the JSON file somewhere you can find it again. Import provides a preview before merging a backup into your journal.
+Export all your journals and readings from **Your data**, regardless of the filters used to view them. Store the JSON file somewhere you can find it again. Import provides a preview before merging a backup into your journal.
 
 Browser storage can be cleared or removed. Each browser and site address has its own history. A source-code download is a copy of the software; it does not back up your readings.
 

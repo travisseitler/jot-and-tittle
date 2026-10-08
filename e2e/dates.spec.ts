@@ -1,3 +1,4 @@
+import { readingAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 import { test, expect, open, log, history, data, NOW } from "./helpers";
 
@@ -34,9 +35,7 @@ test("calendar date survives export into a different timezone and editing", asyn
       .click();
     await history(other);
     await expect(other.locator(".history-date")).toContainText("Oct 5, 2026");
-    await other
-      .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-      .click();
+    await readingAction(other, "Edit Genesis 1:1");
     await expect(other.getByLabel("Reading date")).toHaveValue("2026-10-05");
     await other.getByLabel("Notes").fill("same calendar day");
     await other
@@ -86,9 +85,7 @@ test("v2 database migration retains original timestamp and allows date correctio
   await open(page);
   await history(page);
   await expect(page.locator(".history-date")).toContainText("Oct 1, 2026");
-  await page
-    .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-    .click();
+  await readingAction(page, "Edit Genesis 1:1");
   await expect(page.getByText(/Legacy date estimated from UTC/)).toContainText(
     "2026-10-02T00:30:00+14:00",
   );

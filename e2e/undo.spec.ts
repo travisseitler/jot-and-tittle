@@ -1,3 +1,4 @@
+import { readingAction } from "./helpers";
 import {
   test,
   expect,
@@ -14,12 +15,14 @@ async function remove(
   passage = "Genesis 1:1",
 ) {
   await history(page);
-  await page
-    .getByRole("button", { name: `Delete ${passage}`, exact: true })
-    .click();
+  await readingAction(page, `Delete ${passage}`);
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete reading", exact: true })
+    .getByRole("button", {
+      name: "Delete reading",
+      exact: true,
+      includeHidden: true,
+    })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }

@@ -1,3 +1,7 @@
+import { ReadingDetail } from "./ReadingDetail";
+import { MapDisplayControls } from "./MapDisplayControls";
+import { Dialog } from "./Dialog";
+import { ReadingViewControls } from "./ReadingViewControls";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -16,8 +20,6 @@ import {
   Download,
   Upload,
   Search,
-  Minus,
-  Expand,
   ShieldCheck,
   MoreHorizontal,
   Pencil,
@@ -75,6 +77,7 @@ import {
   type UndoOpportunity,
 } from "./storage";
 import { Heatmap } from "./Heatmap";
+import { EmptyMapDemo } from "./EmptyMapDemo";
 import "./styles.css";
 const dateLocal = localDate;
 const formatDate = formatReadingDate;
@@ -177,6 +180,16 @@ function App() {
   const [deleteJournal, setDeleteJournal] = useState<Journal | null>(null);
   const [deleteJournalError, setDeleteJournalError] = useState("");
   const [manageJournals, setManageJournals] = useState(false);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [page, sample]);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [exploreEmpty, setExploreEmpty] = useState(false);
+  const [mapDisplay, setMapDisplay] = useState(false);
+  const [passageSearch, setPassageSearch] = useState(false);
+  const [readingDetail, setReadingDetail] = useState<Reading | null>(null);
+  const [savedReading, setSavedReading] = useState<Reading | null>(null);
+  const [recordJournalId, setRecordJournalId] = useState(DEFAULT_JOURNAL_ID);
   const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
   const readOnly = !!archivedViewId;
   const viewJournalId = archivedViewId || activeJournalId;
@@ -324,13 +337,10 @@ function App() {
   const today = dateLocal(new Date(timeNow));
   const timeContext = clockContext(timeNow);
   const [periodMode, setPeriodMode] = useState("all");
-  const [periodFrom, setPeriodFrom] = useState(dateLocal());
-  const [periodTo, setPeriodTo] = useState(dateLocal());
   const [appliedPeriod, setAppliedPeriod] = useState({
     from: dateLocal(),
     to: dateLocal(),
   });
-  const [periodError, setPeriodError] = useState("");
   const period = periodBounds(
     periodMode,
     today,
@@ -406,7 +416,6 @@ function App() {
   const viewed = stats.slice(scope.start, scope.end + 1),
     covered = viewed.filter((s) => s.count).length,
     total = viewed.length,
-    interactions = viewed.reduce((sum, s) => sum + s.count, 0),
     bookStats = useMemo(
       () =>
         books.map((b) => ({
@@ -432,7 +441,7 @@ function App() {
     const now = new Date().toISOString();
     return {
       id: id || editing?.id || crypto.randomUUID(),
-      journalId: editing?.journalId || activeJournalId,
+      journalId: editing?.journalId || recordJournalId,
       startedAt:
         editing && readingDate(editing.startedAt) === date
           ? editing.startedAt
@@ -520,23 +529,29 @@ function App() {
       return;
     setSample(false);
     setEditing(r);
+    setRecordJournalId(r?.journalId || activeJournalId);
     setEditingUpdatedAt(r?.updatedAt || null);
     setConflict(null);
     setInput(r?.originalInput || prefill);
     setDate(r ? readingDate(r.startedAt) : dateLocal());
     setNotes(r?.notes || "");
     setFormError("");
+    setSavedReading(null);
     setModal(true);
   }
   async function saveReading(e: React.FormEvent) {
     e.preventDefault();
     if (!parsed.ranges.length) {
       setFormError(parsed.error);
+      document.querySelector<HTMLInputElement>("[data-initial-focus]")?.focus();
       return;
     }
 
     if (!date || !validCalendarDate(date) || date > dateLocal()) {
       setFormError("Choose a valid reading date, today or earlier.");
+      document
+        .querySelector<HTMLInputElement>(".dialog input[type=date]")
+        ?.focus();
       return;
     }
     const r = buildDraft()!;
@@ -548,8 +563,9 @@ function App() {
           setToast(
             editing
               ? "Reading updated."
-              : `Reading saved in “${currentJournal.name}”.`,
+              : `Reading saved in “${sample ? "Example data" : journals.find((j) => j.id === r.journalId)?.name}”.${!scopeJournalIds.includes(r.journalId) || !inPeriod(r, period) ? " Hidden by your current view. Choose Show this reading to find it." : ""}`,
           );
+          setSavedReading(r);
           setConflict(null);
         },
       )
@@ -747,7 +763,6 @@ function App() {
     : book === "all"
       ? "The whole Bible"
       : books[+book].name + (chapter === "all" ? "" : ` ${chapter}`);
-  const coverage = total ? (covered / total) * 100 : 0;
   return (
     <div className="app">
       <aside className="sidebar">
@@ -799,12 +814,12 @@ function App() {
           </label>
           <button
             className="icon-btn"
-            aria-label="Create a journal"
-            title="Create a journal"
+            aria-label="Manage journals"
+            title="Manage journals"
             disabled={!storageReady || saving}
-            onClick={() => openJournalEditor()}
+            onClick={() => setManageJournals(true)}
           >
-            <Plus size={16} />
+            <MoreHorizontal size={16} />
           </button>
         </div>
         <div className="nav-label">YOUR SCRIPTURE, MAPPED</div>
@@ -821,12 +836,22 @@ function App() {
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
+              aria-label={label}
               aria-current={page === id ? "page" : undefined}
               className={`nav-item ${page === id ? "active" : ""}`}
               onClick={() => setPage(id)}
             >
               <Icon size={18} />
-              {label}
+              <span className="nav-title">{label}</span>
+              <span className="nav-short-title">
+                {id === "map"
+                  ? "Map"
+                  : id === "history"
+                    ? "History"
+                    : id === "insights"
+                      ? "Patterns"
+                      : "Your data"}
+              </span>
               {id === "map" && <span className="nav-dot" />}
             </button>
           ))}
@@ -867,8 +892,11 @@ function App() {
       <main>
         <header className="topbar">
           <div>
-            <span className="breadcrumb" title={currentJournal.name}>
-              {currentJournal.name}
+            <span
+              className="breadcrumb"
+              title={sample ? "Example data" : currentJournal.name}
+            >
+              {sample ? "Example data" : currentJournal.name}
             </span>
             <ChevronRight size={12} />
             <span>
@@ -886,9 +914,16 @@ function App() {
               <ShieldCheck size={14} /> Stored on your device
             </span>
             <button
-              className="primary small"
+              className={
+                page === "map" &&
+                !allReadings.length &&
+                !sample &&
+                !exploreEmpty
+                  ? "secondary small"
+                  : "primary small"
+              }
               onClick={() => openLog()}
-              disabled={!storageReady}
+              disabled={!storageReady || readOnly}
             >
               <Plus size={16} /> Log a reading
             </button>
@@ -933,149 +968,17 @@ function App() {
         )}
 
         <div className="content">
-          <section className="panel" aria-label="Calendar filters">
-            <label>
-              Reading period
-              <select
-                aria-label="Reading period"
-                value={periodMode}
-                onChange={(e) => {
-                  setPeriodMode(e.target.value);
-                  setPeriodError("");
-                }}
-              >
-                <option value="all">All time</option>
-                <option value="month">This month</option>
-                <option value="year">This year</option>
-                <option value="custom">Custom dates</option>
-              </select>
-            </label>
-            {periodMode === "custom" && (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  try {
-                    periodBounds("custom", today, periodFrom, periodTo);
-                    setAppliedPeriod({ from: periodFrom, to: periodTo });
-                    setPeriodError("");
-                  } catch (e) {
-                    setPeriodError((e as Error).message);
-                  }
-                }}
-              >
-                <label>
-                  Start date
-                  <input
-                    type="date"
-                    value={periodFrom}
-                    onChange={(e) => setPeriodFrom(e.target.value)}
-                  />
-                </label>
-                <label>
-                  End date
-                  <input
-                    type="date"
-                    value={periodTo}
-                    onChange={(e) => setPeriodTo(e.target.value)}
-                  />
-                </label>
-                <button>Apply dates</button>
-              </form>
-            )}
-            {periodError && <p role="alert">{periodError}</p>}
-            <p>
-              Applied period:{" "}
-              {period.from
-                ? `${period.from} through ${period.to} (inclusive)`
-                : "All time"}
-              . Recency is measured relative to today, {today}, in this
-              browser’s timezone. Known times use their local calendar date.
-            </p>
-            {periodMode !== "all" && !active.length && (
-              <p role="status">No readings in this period.</p>
-            )}
-          </section>
-          <section className="panel" aria-label="Journal view scope">
-            <label>
-              View journals
-              <select
-                aria-label="View journals"
-                value={journalScopeMode}
-                onChange={(e) => setJournalScopeMode(e.target.value)}
-              >
-                <option value="single">Current journal</option>
-                <option value="all">All active journals</option>
-                <option value="selected">Selected journals</option>
-              </select>
-            </label>
-            {journalScopeMode === "selected" && (
-              <fieldset>
-                <legend>Journals to include (archives are read-only)</legend>
-                {journals.map((j) => (
-                  <label key={j.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedJournalIds.includes(j.id)}
-                      onChange={(e) =>
-                        setSelectedJournalIds((ids) =>
-                          e.target.checked
-                            ? [...ids, j.id]
-                            : ids.filter((id) => id !== j.id),
-                        )
-                      }
-                    />
-                    {j.name}
-                    {j.archived ? " (archived)" : ""}
-                  </label>
-                ))}
-              </fieldset>
-            )}
-            <p>
-              Viewing:{" "}
-              {scopeJournalIds
-                .map((id) => journals.find((j) => j.id === id)?.name)
-                .join(", ") || "No journals selected"}
-              . New readings go to{" "}
-              {journals.find((j) => j.id === activeJournalId)?.name}. Aggregate
-              metrics count each encounter once per verse; history shows each
-              journal record.
-            </p>
-            {!scopeJournalIds.length && (
-              <p role="status">Select at least one journal to see readings.</p>
-            )}
-          </section>
           {readOnly && (
             <p role="status">
               Archived journal · read-only.{" "}
               <button onClick={() => setManageJournals(true)}>
-                Manage journals
+                Manage archived journal
               </button>
               <button onClick={() => setArchivedViewId(null)}>
                 Return to active journal
               </button>
             </p>
           )}
-          <div className="journal-context">
-            <span>
-              <BookOpen size={13} />
-              {currentJournal.name}
-              <small>{readings.length} readings</small>
-            </span>
-            <div>
-              <button
-                disabled={!storageReady || saving}
-                onClick={() => openJournalEditor(currentJournal)}
-              >
-                <Pencil size={12} /> Rename
-              </button>
-              <button
-                disabled={!storageReady || saving}
-                onClick={() => openJournalEditor()}
-              >
-                <Plus size={13} /> New journal
-              </button>
-            </div>
-          </div>
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -1110,6 +1013,30 @@ function App() {
               <Info size={16} /> How it works
             </button>
           </div>
+          {page !== "data" &&
+            (allReadings.length > 0 || sample || exploreEmpty) && (
+              <ReadingViewControls
+                journals={journals}
+                currentJournalId={viewJournalId}
+                destinationName={destinationJournal.name}
+                archived={readOnly}
+                sample={sample}
+                mode={periodMode}
+                from={appliedPeriod.from}
+                to={appliedPeriod.to}
+                journalMode={journalScopeMode}
+                ids={selectedJournalIds}
+                today={today}
+                period={period}
+                scopeIds={scopeJournalIds}
+                onApply={(v) => {
+                  setPeriodMode(v.mode);
+                  setAppliedPeriod({ from: v.from, to: v.to });
+                  setJournalScopeMode(v.journalMode);
+                  setSelectedJournalIds(v.ids);
+                }}
+              />
+            )}
           {error && (
             <div className="error-banner" role="alert">
               {error}
@@ -1129,228 +1056,188 @@ function App() {
               </button>
             </div>
           )}
-          {page === "map" && (
-            <>
-              <section className="stats-row">
-                <div className="stat">
-                  <div>
-                    VERSES RECORDED <Grid2X2 size={15} />
-                  </div>
-                  <strong>
-                    {pretty(covered)} <small>/ {pretty(total)}</small>
-                  </strong>
-                  <span>
-                    {covered
-                      ? `${coverage.toFixed(1)}% of ${book === "all" && !scopeRange ? "the Bible" : "this passage"} in your history`
-                      : "Your map begins with your first reading"}
-                  </span>
-                </div>
-                <div className="stat">
-                  <div>
-                    READING SESSIONS <BookOpen size={15} />
-                  </div>
-                  <strong>{pretty(active.length)}</strong>
-                  <span>
-                    {active.length
-                      ? `Since ${formatDate([...active].sort((a, b) => compareReadingDates(a.startedAt, b.startedAt))[0].startedAt)}`
-                      : "A place for each time you read"}
-                  </span>
-                </div>
-                <div className="stat">
-                  <div>
-                    LAST READING <Clock3 size={15} />
-                  </div>
-                  <strong className="date-stat">
-                    {sorted[0]
-                      ? formatDate(sorted[0].startedAt)
-                      : "A fresh page"}
-                  </strong>
-                  <span>
-                    {sorted[0]
-                      ? sorted[0].ranges.map(rangeLabel).join("; ")
-                      : "Record a passage whenever you’re ready"}
-                  </span>
-                </div>
+          {page === "map" &&
+            !sample &&
+            !allReadings.length &&
+            !exploreEmpty && (
+              <section className="panel welcome">
+                <EmptyMapDemo />
+                <h2>Begin with a passage you’ve read.</h2>
+                <p>
+                  Record a chapter, a few verses, or several passages together.
+                  Your map grows with your reading.
+                </p>
+                <button className="primary" onClick={() => openLog()}>
+                  Record your first reading
+                </button>
+                <button className="secondary" onClick={() => setSample(true)}>
+                  Explore a sample map
+                </button>
+                <p>
+                  Your journal is saved in this browser. Download a backup from
+                  Your data to keep another copy.
+                </p>
+                <button className="quiet" onClick={() => setExploreEmpty(true)}>
+                  Explore my empty map
+                </button>
               </section>
-              <section className="map-card">
-                <div className="map-heading">
-                  <div>
-                    <h2>
-                      Your verse map <span>{pretty(total)} verses</span>
-                    </h2>
-                    <p>Small marks. A view of the whole.</p>
-                  </div>
-                  <div
-                    className="segmented metric-tabs"
-                    role="group"
-                    aria-label="Map metric"
-                  >
+            )}
+          {page === "map" &&
+            (sample || allReadings.length > 0 || exploreEmpty) && (
+              <>
+                <p className="map-overview">
+                  {pretty(covered)} verses recorded · {pretty(active.length)}{" "}
+                  reading sessions
+                  {sorted[0] && (
+                    <> · Last read {formatDate(sorted[0].startedAt)}</>
+                  )}
+                </p>
+                <section className="map-card">
+                  <div className="map-heading">
+                    <div>
+                      <h2>
+                        Your verse map <span>{pretty(total)} verses</span>
+                      </h2>
+                      <p>Small marks. A view of the whole.</p>
+                    </div>
                     <button
-                      aria-pressed={metric === "combined"}
-                      className={metric === "combined" ? "chosen" : ""}
-                      onClick={() => setMetric("combined")}
+                      className="secondary"
+                      aria-expanded={mapDisplay}
+                      aria-controls="map-display-panel"
+                      onClick={() => setMapDisplay(!mapDisplay)}
                     >
-                      <Leaf size={14} /> Combined
-                    </button>
-                    <button
-                      aria-pressed={metric === "recency"}
-                      className={metric === "recency" ? "chosen" : ""}
-                      onClick={() => setMetric("recency")}
-                    >
-                      <Clock3 size={14} /> Recency
-                    </button>
-                    <button
-                      aria-pressed={metric === "frequency"}
-                      className={metric === "frequency" ? "chosen" : ""}
-                      onClick={() => setMetric("frequency")}
-                    >
-                      <ChartNoAxesColumnIncreasing size={14} /> Frequency
+                      Map display ·{" "}
+                      {metric === "combined"
+                        ? "Combined"
+                        : metric === "recency"
+                          ? "Recency"
+                          : "Frequency"}
                     </button>
                   </div>
-                </div>
-                <div className="map-toolbar">
-                  <div className="scope-controls">
-                    <label>
-                      <BookOpen size={14} />
-                      <select
-                        aria-label="Book scope"
-                        value={book}
-                        onChange={(e) => {
-                          setBook(e.target.value);
-                          setChapter("all");
-                          setScopeRange(null);
-                          setScopeText("");
-                        }}
-                      >
-                        <option value="all">Whole Bible</option>
-                        {books.map((b) => (
-                          <option key={b.index} value={b.index}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={12} />
-                    </label>
-                    {book !== "all" && (
+                  <div className="map-toolbar">
+                    <div className="scope-controls">
                       <label>
+                        <BookOpen size={14} />
                         <select
-                          aria-label="Chapter scope"
-                          value={chapter}
+                          aria-label="Book scope"
+                          value={book}
                           onChange={(e) => {
-                            setChapter(e.target.value);
+                            setBook(e.target.value);
+                            setChapter("all");
                             setScopeRange(null);
+                            setScopeText("");
                           }}
                         >
-                          <option value="all">All chapters</option>
-                          {books[+book].chapters.map((_, i) => (
-                            <option key={i} value={i + 1}>
-                              Chapter {i + 1}
+                          <option value="all">Whole Bible</option>
+                          {books.map((b) => (
+                            <option key={b.index} value={b.index}>
+                              {b.name}
                             </option>
                           ))}
                         </select>
+                        <ChevronDown size={12} />
                       </label>
-                    )}
-                    <form
-                      className="scope-search"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        applyScope();
-                      }}
-                    >
-                      <Search size={14} />
-                      <input
-                        aria-label="Focus on a passage"
-                        placeholder="Focus on a passage…"
-                        value={scopeText}
-                        onChange={(e) => setScopeText(e.target.value)}
-                      />
-                      {scopeText && (
-                        <button aria-label="Focus passage">
-                          <ArrowRight size={14} />
-                        </button>
+                      {book !== "all" && (
+                        <label>
+                          <select
+                            aria-label="Chapter scope"
+                            value={chapter}
+                            onChange={(e) => {
+                              setChapter(e.target.value);
+                              setScopeRange(null);
+                            }}
+                          >
+                            <option value="all">All chapters</option>
+                            {books[+book].chapters.map((_, i) => (
+                              <option key={i} value={i + 1}>
+                                Chapter {i + 1}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                       )}
-                    </form>
-                  </div>
-                  <div className="layout-controls">
-                    <div className="segmented compact">
                       <button
-                        aria-pressed={layout === "continuous"}
-                        className={layout === "continuous" ? "chosen" : ""}
-                        onClick={() => setLayout("continuous")}
-                        title="Responsive, continuous flow"
+                        className="quiet"
+                        aria-expanded={passageSearch}
+                        aria-controls="passage-search"
+                        onClick={() => setPassageSearch(!passageSearch)}
                       >
-                        <Grid2X2 size={13} /> Flow
+                        Go to passage
                       </button>
-                      <button
-                        aria-pressed={layout === "fixed-grid"}
-                        className={layout === "fixed-grid" ? "chosen" : ""}
-                        onClick={() => setLayout("fixed-grid")}
-                        title="Stable, 160-column canonical grid"
+                      <form
+                        hidden={!passageSearch}
+                        id="passage-search"
+                        className="scope-search"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          applyScope();
+                        }}
                       >
-                        <Layers size={13} /> Fixed
-                      </button>
+                        <Search size={14} />
+                        <input
+                          aria-label="Focus on a passage"
+                          placeholder="Focus on a passage…"
+                          value={scopeText}
+                          onChange={(e) => setScopeText(e.target.value)}
+                        />
+                        {scopeText && (
+                          <button aria-label="Focus passage">
+                            <ArrowRight size={14} />
+                          </button>
+                        )}
+                      </form>
                     </div>
-                    <span className="tool-divider" />
-                    <button
-                      className="icon-btn"
-                      aria-label="Zoom out"
-                      disabled={zoom <= 4}
-                      onClick={() => setZoom((x) => x - 2)}
-                    >
-                      <Minus size={15} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      aria-label="Zoom in"
-                      disabled={zoom >= 14}
-                      onClick={() => setZoom((x) => x + 2)}
-                    >
-                      <Plus size={15} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      aria-label="Reset zoom"
-                      onClick={() => setZoom(4)}
-                    >
-                      <Expand size={14} />
-                    </button>
                   </div>
-                </div>
-                {scopeError && <div className="inline-error">{scopeError}</div>}
-                {(book !== "all" || scopeRange) && (
-                  <div className="scope-tag">
-                    Viewing {scopeName}
-                    <button onClick={resetScope}>
-                      <X size={12} /> Whole Bible
-                    </button>
-                  </div>
-                )}
-                <div className="map-area">
-                  {!ready ? (
-                    <div className="loading">Opening your reading space…</div>
-                  ) : (
-                    <Heatmap
-                      scope={scope}
-                      stats={stats}
-                      everStats={unfilteredStats}
-                      now={timeNow}
+                  {mapDisplay && (
+                    <MapDisplayControls
                       metric={metric}
                       layout={layout}
                       zoom={zoom}
-                      onInspect={setInspectedVerse}
-                      onSelect={(id) => {
-                        setInspectedVerse(id);
-                        setSelected(id);
-                      }}
+                      setMetric={setMetric}
+                      setLayout={setLayout}
+                      setZoom={setZoom}
                     />
                   )}
-                </div>
-                <div className="map-footer">
-                  <span>
-                    <span className="dot-square" /> One square, one verse{" "}
-                    <span className="footer-separator">·</span> Hover to find
-                    your place
-                  </span>
+                  {scopeError && (
+                    <div className="inline-error">{scopeError}</div>
+                  )}
+                  {(book !== "all" || scopeRange) && (
+                    <div className="scope-tag">
+                      Viewing {scopeName}
+                      <button onClick={resetScope}>
+                        <X size={12} /> Whole Bible
+                      </button>
+                    </div>
+                  )}
+                  <div className="map-area">
+                    {!ready ? (
+                      <div className="loading">Opening your reading space…</div>
+                    ) : (
+                      <Heatmap
+                        scope={scope}
+                        stats={stats}
+                        everStats={unfilteredStats}
+                        now={timeNow}
+                        metric={metric}
+                        layout={layout}
+                        zoom={zoom}
+                        onInspect={setInspectedVerse}
+                        onSelect={(id) => {
+                          setInspectedVerse(id);
+                          setSelected(id);
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="map-footer">
+                    <span>
+                      <span className="dot-square" /> One square, one verse{" "}
+                      <span className="footer-separator">·</span> Inspect a
+                      verse for counts and dates
+                    </span>
+
+                    <MetricLegend metric={metric} />
+                  </div>
                   <section
                     className="text-inspector"
                     aria-label="Textual verse inspection"
@@ -1373,7 +1260,7 @@ function App() {
                         }
                       }}
                     >
-                      <label>
+                      <label className="field-label">
                         Verse reference
                         <input
                           value={inspectText}
@@ -1412,83 +1299,83 @@ function App() {
                     <button onClick={() => setSelected(inspectedVerse)}>
                       Open inspected verse details
                     </button>
-                    <p>
-                      Arrow keys on the map inspect verses; Home and End jump to
-                      the scope boundaries. Enter or tap opens details. Text
-                      inspection provides the same counts and dates without
-                      using the map.
-                    </p>
+                    <details>
+                      <summary>Keyboard and text inspection</summary>
+                      <p>
+                        Arrow keys on the map inspect verses; Home and End jump
+                        to the scope boundaries. Enter or tap opens details.
+                        Text inspection provides the same counts and dates
+                        without using the map.
+                      </p>
+                    </details>
                   </section>
-                  <MetricLegend metric={metric} />
-                </div>
-              </section>
-              <div className="below-map">
-                <section className="recent-section">
-                  <div className="section-title">
-                    <h2>Recent readings</h2>
-                    <button onClick={() => setPage("history")}>
-                      View history <ArrowRight size={14} />
-                    </button>
-                  </div>
-                  {sorted.length ? (
-                    sorted.slice(0, 3).map((r) => (
-                      <button
-                        className="recent-reading"
-                        key={r.id}
-                        onClick={() =>
-                          sample
-                            ? setToast(
-                                "Sample readings are read-only. Return to your history to log or edit.",
-                              )
-                            : openLog(r)
-                        }
-                      >
-                        <span className="reading-icon">
-                          <BookOpen size={16} />
-                        </span>
-                        <div>
-                          <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
-                          <span>
-                            {journals.find((j) => j.id === r.journalId)?.name}
-                          </span>
-                          <small>
-                            {formatDate(r.startedAt)} <span>·</span>{" "}
-                            {pretty(rangeCount(r.ranges))} verses
-                          </small>
-                        </div>
-                        <ChevronRight size={16} />
-                      </button>
-                    ))
-                  ) : (
-                    <div className="empty-recent">
-                      <BookOpen size={22} />
-                      <p>Your readings will appear here.</p>
-                      <button onClick={() => openLog()}>
-                        Record your first passage <ArrowRight size={14} />
+                </section>
+                <div className="below-map">
+                  <section className="recent-section">
+                    <div className="section-title">
+                      <h2>Recent readings</h2>
+                      <button onClick={() => setPage("history")}>
+                        View history <ArrowRight size={14} />
                       </button>
                     </div>
-                  )}
-                </section>
-                <section className="reflection-card">
-                  <span className="eyebrow">A LITTLE PERSPECTIVE</span>
-                  <h3>A map, not a measure.</h3>
-                  <p>
-                    These marks describe where you’ve read. They don’t measure
-                    your faith, your effort, or your worth.
-                  </p>
-                  {!active.length ? (
-                    <button onClick={() => setSample(true)}>
-                      Explore a sample map <ArrowUpRight size={14} />
-                    </button>
-                  ) : (
-                    <button onClick={() => setPage("insights")}>
-                      Explore your reading patterns <ArrowUpRight size={14} />
-                    </button>
-                  )}
-                </section>
-              </div>
-            </>
-          )}
+                    {sorted.length ? (
+                      sorted.slice(0, 3).map((r) => (
+                        <button
+                          className="recent-reading"
+                          key={r.id}
+                          onClick={() => setReadingDetail(r)}
+                        >
+                          <span className="reading-icon">
+                            <BookOpen size={16} />
+                          </span>
+                          <div>
+                            <strong>
+                              {r.ranges.map(rangeLabel).join("; ")}
+                            </strong>
+                            <span>
+                              {sample
+                                ? "Example data"
+                                : journals.find((j) => j.id === r.journalId)
+                                    ?.name}
+                            </span>
+                            <small>
+                              {formatDate(r.startedAt)} <span>·</span>{" "}
+                              {pretty(rangeCount(r.ranges))} verses
+                            </small>
+                          </div>
+                          <ChevronRight size={16} />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="empty-recent">
+                        <BookOpen size={22} />
+                        <p>Your readings will appear here.</p>
+                        <button onClick={() => openLog()}>
+                          Record your first passage <ArrowRight size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                  <section className="reflection-card">
+                    <span className="eyebrow">A LITTLE PERSPECTIVE</span>
+                    <h3>A map, not a measure.</h3>
+                    <p>
+                      These marks describe where you’ve read. They don’t measure
+                      your faith, your effort, or your worth.
+                    </p>
+                    {!active.length ? (
+                      <button onClick={() => setSample(true)}>
+                        Explore a sample map <ArrowUpRight size={14} />
+                      </button>
+                    ) : (
+                      <button onClick={() => setPage("insights")}>
+                        Explore your reading patterns <ArrowUpRight size={14} />
+                      </button>
+                    )}
+                  </section>
+                </div>
+              </>
+            )}
           {page === "history" && (
             <section className="panel">
               <div className="section-title">
@@ -1519,89 +1406,114 @@ function App() {
                     .toLowerCase()
                     .includes(historyQuery.toLowerCase()),
                 )
-                .map((r) => (
-                  <div className="history-row" key={r.id}>
-                    <div className="history-date">
-                      <CalendarDays size={16} />
-                      {formatDate(r.startedAt)}
+                .map((r, index, rows) => (
+                  <React.Fragment key={r.id}>
+                    {(index === 0 ||
+                      readingDate(rows[index - 1].startedAt) !==
+                        readingDate(r.startedAt)) && (
+                      <h3 className="history-day-heading">
+                        {formatDate(r.startedAt)}
+                      </h3>
+                    )}
+                    <div className="history-row" key={r.id}>
+                      <button
+                        className="history-date"
+                        onClick={() => setReadingDetail(r)}
+                      >
+                        <CalendarDays size={16} />
+                        {formatDate(r.startedAt)}
+                      </button>
+                      <div className="history-passage">
+                        <span>
+                          {sample
+                            ? "Example data"
+                            : journals.find((j) => j.id === r.journalId)?.name}
+                        </span>
+                        <button
+                          className="reading-title"
+                          onClick={() => setReadingDetail(r)}
+                        >
+                          {r.ranges.map(rangeLabel).join("; ")}
+                        </button>
+                        <small>
+                          {pretty(rangeCount(r.ranges))} unique verses
+                          {r.notes && ` · ${r.notes}`}
+                        </small>
+                      </div>
+                      {!sample &&
+                        !readOnly &&
+                        !journals.find((j) => j.id === r.journalId)
+                          ?.archived && (
+                          <details className="reading-actions">
+                            <summary>More actions</summary>
+                            <button
+                              className="icon-btn"
+                              disabled={
+                                sample ||
+                                readOnly ||
+                                !!journals.find((j) => j.id === r.journalId)
+                                  ?.archived
+                              }
+                              aria-label={`Move ${r.originalInput}`}
+                              onClick={() => {
+                                setTransferMode("move");
+                                setTransfer(r);
+                                setDestination("");
+                                setTransferError("");
+                              }}
+                            >
+                              <ArrowRight size={16} />
+                            </button>
+                            <button
+                              className="icon-btn"
+                              disabled={
+                                sample ||
+                                readOnly ||
+                                !!journals.find((j) => j.id === r.journalId)
+                                  ?.archived
+                              }
+                              aria-label={`Copy ${r.originalInput}`}
+                              onClick={() => {
+                                setTransferMode("copy");
+                                setCopyId(crypto.randomUUID());
+                                setTransfer(r);
+                                setDestination("");
+                                setTransferError("");
+                              }}
+                            >
+                              <Layers size={16} />
+                            </button>
+
+                            <button
+                              className="icon-btn"
+                              disabled={
+                                sample ||
+                                readOnly ||
+                                !!journals.find((j) => j.id === r.journalId)
+                                  ?.archived
+                              }
+                              aria-label={`Delete ${r.originalInput}`}
+                              onClick={() => setConfirmDelete(r)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </details>
+                        )}
                     </div>
-                    <div className="history-passage">
-                      <span>
-                        {journals.find((j) => j.id === r.journalId)?.name}
-                      </span>
-                      <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
-                      <small>
-                        {pretty(rangeCount(r.ranges))} unique verses
-                        {r.notes && ` · ${r.notes}`}
-                      </small>
-                    </div>
-                    <button
-                      className="icon-btn"
-                      disabled={
-                        sample ||
-                        readOnly ||
-                        !!journals.find((j) => j.id === r.journalId)?.archived
-                      }
-                      aria-label={`Move ${r.originalInput}`}
-                      onClick={() => {
-                        setTransferMode("move");
-                        setTransfer(r);
-                        setDestination("");
-                        setTransferError("");
-                      }}
-                    >
-                      <ArrowRight size={16} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      disabled={
-                        sample ||
-                        readOnly ||
-                        !!journals.find((j) => j.id === r.journalId)?.archived
-                      }
-                      aria-label={`Copy ${r.originalInput}`}
-                      onClick={() => {
-                        setTransferMode("copy");
-                        setCopyId(crypto.randomUUID());
-                        setTransfer(r);
-                        setDestination("");
-                        setTransferError("");
-                      }}
-                    >
-                      <Layers size={16} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      disabled={
-                        sample ||
-                        readOnly ||
-                        !!journals.find((j) => j.id === r.journalId)?.archived
-                      }
-                      aria-label={`Edit ${r.originalInput}`}
-                      onClick={() => openLog(r)}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      className="icon-btn"
-                      disabled={
-                        sample ||
-                        readOnly ||
-                        !!journals.find((j) => j.id === r.journalId)?.archived
-                      }
-                      aria-label={`Delete ${r.originalInput}`}
-                      onClick={() => setConfirmDelete(r)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  </React.Fragment>
                 ))}
               {!sorted.length && (
                 <div className="large-empty">
                   <BookOpen size={32} />
-                  <h3>A reading history starts with one passage.</h3>
+                  <h3>
+                    {readings.length || sample
+                      ? "No readings in this view."
+                      : "A reading history starts with one passage."}
+                  </h3>
                   <p>
-                    Log a chapter, a few verses, or several passages together.
+                    {readings.length || sample
+                      ? "Change View readings or Reset view to see more of your history."
+                      : "Log a chapter, a few verses, or several passages together."}
                   </p>
                   <button className="primary" onClick={() => openLog()}>
                     <Plus size={16} /> Log a reading
@@ -1623,11 +1535,26 @@ function App() {
                   )
                     .toLowerCase()
                     .includes(historyQuery.toLowerCase()),
-                ) && <p className="muted">No readings match your search.</p>}
+                ) && (
+                  <p className="muted">
+                    No readings match your search.{" "}
+                    <button onClick={() => setHistoryQuery("")}>
+                      Clear search
+                    </button>
+                  </p>
+                )}
             </section>
           )}
           {page === "insights" && (
             <>
+              <section className="pattern-overview">
+                <h2>Where does your reading take you?</h2>
+                <p>
+                  {active.length
+                    ? `You’ve recorded ${active.length} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
+                    : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
+                </p>
+              </section>
               <section className="stats-row">
                 <div className="stat">
                   <div>UNIQUE VERSES</div>
@@ -1651,44 +1578,48 @@ function App() {
               </section>
               <section className="panel">
                 <div className="section-title">
-                  <h2>Across the books</h2>
+                  <h2>Where have you been reading?</h2>
                   <span className="muted">
                     Unique verses recorded · canonical order
                   </span>
                 </div>
-                <div className="book-grid">
-                  {bookStats.map((b) => (
-                    <button
-                      className="book-stat"
-                      key={b.index}
-                      onClick={() => {
-                        setBook(String(b.index));
-                        setChapter("all");
-                        setScopeRange(null);
-                        setPage("map");
-                      }}
-                    >
-                      <div>
-                        <strong>{b.name}</strong>
-                        <span>
-                          {b.read
-                            ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
-                            : "—"}
-                        </span>
-                      </div>
-                      <div className="progress">
-                        <i
-                          style={{
-                            width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <small>
-                        {pretty(b.read)} of {pretty(b.end - b.start + 1)} verses
-                      </small>
-                    </button>
-                  ))}
-                </div>
+                <details className="book-breakdown">
+                  <summary>Explore all 66 books</summary>
+                  <div className="book-grid">
+                    {bookStats.map((b) => (
+                      <button
+                        className="book-stat"
+                        key={b.index}
+                        onClick={() => {
+                          setBook(String(b.index));
+                          setChapter("all");
+                          setScopeRange(null);
+                          setPage("map");
+                        }}
+                      >
+                        <div>
+                          <strong>{b.name}</strong>
+                          <span>
+                            {b.read
+                              ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
+                              : "—"}
+                          </span>
+                        </div>
+                        <div className="progress">
+                          <i
+                            style={{
+                              width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <small>
+                          {pretty(b.read)} of {pretty(b.end - b.start + 1)}{" "}
+                          verses
+                        </small>
+                      </button>
+                    ))}
+                  </div>
+                </details>
               </section>
               <section className="panel return-panel">
                 <h2>Places you return to</h2>
@@ -1780,8 +1711,12 @@ function App() {
                   </button>
                 </section>
               </div>
-              <section className="panel">
-                <h2>Trash</h2>
+              <details
+                className="panel"
+                open={trashOpen}
+                onToggle={(e) => setTrashOpen(e.currentTarget.open)}
+              >
+                <summary>Trash · {trash.length} groups</summary>
                 <p>
                   Readings are recoverable for 30 days after deletion, including
                   journal clearing. Trash is excluded from maps, history,
@@ -1862,18 +1797,10 @@ function App() {
                     </button>
                   </article>
                 ))}
-              </section>
-              <section className="panel">
-                <h2>Journals</h2>
-                <button
-                  className="secondary"
-                  onClick={() => setManageJournals(true)}
-                >
-                  Manage journals
-                </button>
-              </section>
-              <section className="panel">
-                <h2>About this reading space</h2>
+              </details>
+
+              <details className="panel">
+                <summary>About this reading space</summary>
                 <dl className="data-details">
                   <div>
                     <dt>Canon</dt>
@@ -1905,45 +1832,25 @@ function App() {
                   a copy whenever you want a durable backup. Each browser and
                   origin has a separate reading space.
                 </p>
-              </section>
-              <section className="panel">
-                <h2>Run Jot &amp; Tittle yourself</h2>
-                <p className="muted" style={{ margin: "12px 0 18px" }}>
-                  This source-code download does not back up your personal data.
-                  Visit the latest GitHub release. To host the app without build
-                  tools, download jot-and-tittle-build.zip. Source-code archives
-                  contain code, tests, and setup instructions and require a
-                  build before static hosting. Downloads will be available once
-                  the first release is published.
-                </p>
-                <a
-                  className="secondary source-link"
-                  href="https://github.com/travisseitler/jot-and-tittle/releases/latest"
-                >
-                  Download source code <Download size={15} />
-                </a>
-              </section>
-              <section className="panel reset-panel">
-                <div>
-                  <h2>Clear this journal</h2>
-                  <p>
-                    Remove all {destinationReadings.length} readings from “
-                    {destinationJournal.name}”. Your other journals stay intact.
-                    Export a backup first if you want to keep these readings.
+                <div className="source-info">
+                  <h2>Run Jot &amp; Tittle yourself</h2>
+                  <p className="muted" style={{ margin: "12px 0 18px" }}>
+                    This source-code download does not back up your personal
+                    data. Visit the latest GitHub release. To host the app
+                    without build tools, download jot-and-tittle-build.zip.
+                    Source-code archives contain code, tests, and setup
+                    instructions and require a build before static hosting.
+                    Downloads will be available once the first release is
+                    published.
                   </p>
+                  <a
+                    className="secondary source-link"
+                    href="https://github.com/travisseitler/jot-and-tittle/releases/latest"
+                  >
+                    Download source code <Download size={15} />
+                  </a>
                 </div>
-                <button
-                  className="danger-outline"
-                  disabled={readOnly || sample || saving}
-                  onClick={() => {
-                    setResetJournal(destinationJournal);
-                    setResetReadingIds(destinationReadings.map((r) => r.id));
-                    setConfirmReset(true);
-                  }}
-                >
-                  Clear journal readings
-                </button>
-              </section>
+              </details>
             </>
           )}
           <footer className="page-footer">
@@ -1966,6 +1873,29 @@ function App() {
         <div className="toast" role="status">
           <Check size={17} />
           {toast}
+          {savedReading &&
+            allReadings.some((r) => r.id === savedReading.id) &&
+            (toast.startsWith("Reading saved") ||
+              toast === "Reading updated.") && (
+              <button
+                onClick={() => {
+                  setSample(false);
+                  setPeriodMode("all");
+                  setJournalScopeMode("selected");
+                  setSelectedJournalIds([savedReading.journalId]);
+                  setArchivedViewId(null);
+                  setPage("map");
+                  setScopeRange(savedReading.ranges[0]);
+                  setBook("all");
+                  setChapter("all");
+                  setScopeText("");
+                  setExploreEmpty(true);
+                  setSavedReading(null);
+                }}
+              >
+                Show this reading
+              </button>
+            )}
         </div>
       )}
       {modal && (
@@ -1973,31 +1903,42 @@ function App() {
           title={editing ? "Edit your reading" : "Log a reading"}
           onClose={() => setModal(false)}
         >
-          <p className="dialog-intro">
-            Recording in{" "}
-            <strong>
-              {
-                journals.find(
-                  (j) => j.id === (editing?.journalId || activeJournalId),
-                )?.name
-              }
-            </strong>
-            . A chapter, a verse, or a few passages.
-          </p>
+          <label className="field-label">
+            Recording in
+            <select
+              aria-label="Recording journal"
+              value={editing?.journalId || recordJournalId}
+              disabled={!!editing}
+              onChange={(e) => setRecordJournalId(e.target.value)}
+            >
+              {journals
+                .filter((j) => !j.archived || j.id === editing?.journalId)
+                .map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.name}
+                  </option>
+                ))}
+            </select>
+          </label>
           <form onSubmit={saveReading}>
             <label className="field-label">
               Passage or passages
               <input
+                data-initial-focus
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="e.g. Romans 8:1–17; Psalm 23"
               />
             </label>
-            <small className="field-help">
-              Book names or abbreviations. Commas inherit verse context (John
-              3:16, 18–21) or chapter context (John 3, 5). Repeat the book or
-              use a semicolon to start chapters after verses.
-            </small>
+            <small className="field-help">Try John 3:16 or Psalm 23.</small>
+            <details className="reference-examples">
+              <summary>More reference examples</summary>
+              <small className="field-help">
+                Book names or abbreviations. Commas inherit verse context (John
+                3:16, 18–21) or chapter context (John 3, 5). Repeat the book or
+                use a semicolon to start chapters after verses.
+              </small>
+            </details>
             {input && (
               <div
                 role={parsed.error ? "alert" : "status"}
@@ -2106,8 +2047,10 @@ function App() {
                 <div key={r.id}>
                   <span>{formatDate(r.startedAt)}</span>
                   <small>
-                    {journals.find((j) => j.id === r.journalId)?.name} ·{" "}
-                    {r.ranges.map(rangeLabel).join("; ")}
+                    {sample
+                      ? "Example data"
+                      : journals.find((j) => j.id === r.journalId)?.name}{" "}
+                    · {r.ranges.map(rangeLabel).join("; ")}
                   </small>
                 </div>
               ))}
@@ -2516,6 +2459,28 @@ function App() {
           </button>
         </Dialog>
       )}
+      {readingDetail && (
+        <ReadingDetail
+          reading={readingDetail}
+          journalName={
+            sample
+              ? "Example data"
+              : journals.find((j) => j.id === readingDetail.journalId)?.name ||
+                "Journal"
+          }
+          editable={
+            !sample &&
+            !readOnly &&
+            !journals.find((j) => j.id === readingDetail.journalId)?.archived
+          }
+          onClose={() => setReadingDetail(null)}
+          onEdit={() => {
+            const r = readingDetail;
+            setReadingDetail(null);
+            openLog(r);
+          }}
+        />
+      )}
       {manageJournals && (
         <Dialog
           title="Manage journals"
@@ -2525,11 +2490,55 @@ function App() {
             Archived journals keep their history and exports. Restore them
             before changing readings.
           </p>
+          <button
+            className="secondary"
+            onClick={() => {
+              setManageJournals(false);
+              openJournalEditor();
+            }}
+          >
+            Create a journal
+          </button>
           {journals.map((j) => (
             <div key={j.id}>
               <strong>
                 {j.name} {j.archived ? "(archived)" : "(active)"}
               </strong>
+              <button
+                onClick={() => {
+                  setManageJournals(false);
+                  openJournalEditor(j);
+                }}
+              >
+                Rename {j.name}
+              </button>
+              {!j.archived && (
+                <button
+                  onClick={() => {
+                    setManageJournals(false);
+                    setResetJournal(j);
+                    setConfirmReset(true);
+                    setResetReadingIds(
+                      allReadings
+                        .filter((r) => r.journalId === j.id)
+                        .map((r) => r.id),
+                    );
+                  }}
+                >
+                  Clear {j.name} readings
+                </button>
+              )}
+              {j.id !== DEFAULT_JOURNAL_ID && (
+                <button
+                  onClick={() => {
+                    setManageJournals(false);
+                    setDeleteJournalError("");
+                    setDeleteJournal(j);
+                  }}
+                >
+                  Delete {j.name}
+                </button>
+              )}
               {j.archived && (
                 <button
                   onClick={() => {
@@ -2679,118 +2688,6 @@ function App() {
           </button>
         </Dialog>
       )}
-    </div>
-  );
-}
-const dialogStack: HTMLElement[] = [];
-const originalInert = new Map<HTMLElement, boolean>();
-let originalOverflow = "";
-function syncDialogs() {
-  const top = dialogStack.at(-1);
-  const host = top?.parentElement;
-  if (top)
-    for (const child of Array.from(host?.children || [])) {
-      if (!(child instanceof HTMLElement)) continue;
-      if (!originalInert.has(child)) originalInert.set(child, child.inert);
-      child.inert = child !== top;
-    }
-  else {
-    for (const [child, value] of originalInert) child.inert = value;
-    originalInert.clear();
-    document.body.style.overflow = originalOverflow;
-  }
-}
-function Dialog({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  const titleId = React.useId();
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
-    const backdrop = root.current!.parentElement!;
-    if (!dialogStack.length) originalOverflow = document.body.style.overflow;
-    dialogStack.push(backdrop);
-    document.body.style.overflow = "hidden";
-    syncDialogs();
-    const focus =
-      root.current?.querySelector<HTMLElement>(
-        'input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled)',
-      ) ||
-      root.current?.querySelector<HTMLElement>("button:not(:disabled)") ||
-      root.current;
-    focus?.focus();
-    return () => {
-      const index = dialogStack.indexOf(backdrop);
-      if (index >= 0) dialogStack.splice(index, 1);
-      syncDialogs();
-      if (previous?.isConnected && !previous.closest("[inert]"))
-        previous.focus();
-      else
-        (
-          dialogStack
-            .at(-1)
-            ?.querySelector<HTMLElement>("button:not(:disabled)") ||
-          document.querySelector<HTMLElement>("header button:not(:disabled)")
-        )?.focus();
-    };
-  }, []);
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="dialog"
-        ref={root}
-        role="dialog"
-        tabIndex={-1}
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            e.preventDefault();
-            e.stopPropagation();
-            onClose();
-            return;
-          }
-          if (e.key === "Tab") {
-            const elements = Array.from(
-              root.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
-              ) || [],
-            );
-            const first = elements[0],
-              last = elements.at(-1);
-            if (e.shiftKey && document.activeElement === first) {
-              e.preventDefault();
-              last?.focus();
-            } else if (!e.shiftKey && document.activeElement === last) {
-              e.preventDefault();
-              first?.focus();
-            }
-          }
-        }}
-      >
-        <div className="dialog-heading">
-          <h2 id={titleId}>{title}</h2>
-          <button
-            className="icon-btn"
-            aria-label="Close dialog"
-            onClick={onClose}
-          >
-            <X size={19} />
-          </button>
-        </div>
-        {children}
-      </div>
     </div>
   );
 }

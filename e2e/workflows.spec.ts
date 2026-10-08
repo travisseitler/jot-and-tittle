@@ -1,3 +1,4 @@
+import { readingAction } from "./helpers";
 import { readFile } from "node:fs/promises";
 import {
   test,
@@ -19,9 +20,7 @@ test("readings can be logged, edited, reloaded and deleted", async ({
   await expect(page.locator(".history-row")).toContainText(
     "3 unique verses · original note",
   );
-  await page
-    .getByRole("button", { name: "Edit Romans 8:1–3", exact: true })
-    .click();
+  await readingAction(page, "Edit Romans 8:1–3");
   await page.getByLabel("Passage or passages").fill("Psalm 23");
   await page.getByLabel("Notes").fill("updated note");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
@@ -31,12 +30,14 @@ test("readings can be logged, edited, reloaded and deleted", async ({
   await expect(page.locator(".history-row")).toContainText(
     "6 unique verses · updated note",
   );
-  await page
-    .getByRole("button", { name: "Delete Psalm 23", exact: true })
-    .click();
+  await readingAction(page, "Delete Psalm 23");
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete reading", exact: true })
+    .getByRole("button", {
+      name: "Delete reading",
+      exact: true,
+      includeHidden: true,
+    })
     .click();
   await expect(page.locator(".history-row")).toHaveCount(0);
   await page.reload();
@@ -58,7 +59,12 @@ test("journals track the same verse independently and persist names and selectio
   await history(page);
   await expect(page.locator(".history-row")).toHaveCount(0);
   await log(page, "Genesis 1:1", "sermon journal");
-  await page.getByRole("button", { name: "Rename", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Manage journals", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Rename Sermons", exact: true })
+    .click();
   await page.getByLabel("Journal name").fill("Sunday sermons");
   await page.getByRole("button", { name: "Save name", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);

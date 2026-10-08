@@ -1,3 +1,5 @@
+import { openClear } from "./helpers";
+import { readingAction } from "./helpers";
 import { test, expect, open, log, history, data } from "./helpers";
 
 for (const remoteAction of ["edit", "delete"] as const) {
@@ -12,29 +14,27 @@ for (const remoteAction of ["edit", "delete"] as const) {
     await open(page);
     await log(page);
     await history(page);
-    await page
-      .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-      .click();
+    await readingAction(page, "Edit Genesis 1:1");
     await page.getByLabel("Notes").fill("stale draft");
     const other = await context.newPage();
     await other.clock.setFixedTime(new Date("2026-10-05T12:01:00Z"));
     await open(other);
     await history(other);
     if (remoteAction === "edit") {
-      await other
-        .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-        .click();
+      await readingAction(other, "Edit Genesis 1:1");
       await other.getByLabel("Notes").fill("remote version");
       await other
         .getByRole("button", { name: "Save changes", exact: true })
         .click();
     } else {
-      await other
-        .getByRole("button", { name: "Delete Genesis 1:1", exact: true })
-        .click();
+      await readingAction(other, "Delete Genesis 1:1");
       await other
         .getByRole("dialog")
-        .getByRole("button", { name: "Delete reading", exact: true })
+        .getByRole("button", {
+          name: "Delete reading",
+          exact: true,
+          includeHidden: true,
+        })
         .click();
     }
     await expect(other.getByRole("dialog")).toHaveCount(0);
@@ -97,10 +97,7 @@ test("stale edits cannot overwrite a newer edit or resurrect a deleted reading",
   await other.clock.setFixedTime(new Date("2026-10-05T12:01:00Z"));
   await open(other);
   await history(other);
-  for (const tab of [page, other])
-    await tab
-      .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-      .click();
+  for (const tab of [page, other]) await readingAction(tab, "Edit Genesis 1:1");
   await page.getByLabel("Notes").fill("stale draft");
   await other.getByLabel("Notes").fill("newer edit");
   await other
@@ -120,15 +117,15 @@ test("stale edits cannot overwrite a newer edit or resurrect a deleted reading",
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
   await expect(page.locator(".history-row")).toContainText("newer edit");
-  await page
-    .getByRole("button", { name: "Edit Genesis 1:1", exact: true })
-    .click();
-  await other
-    .getByRole("button", { name: "Delete Genesis 1:1", exact: true })
-    .click();
+  await readingAction(page, "Edit Genesis 1:1");
+  await readingAction(other, "Delete Genesis 1:1");
   await other
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete reading", exact: true })
+    .getByRole("button", {
+      name: "Delete reading",
+      exact: true,
+      includeHidden: true,
+    })
     .click();
   await expect(other.locator(".history-row")).toHaveCount(0);
   await expect(
@@ -150,9 +147,7 @@ test("a pending journal reset preserves readings added by another tab", async ({
   await other.clock.setFixedTime(new Date("2026-10-05T12:01:00Z"));
   await open(other);
   await data(page);
-  await page
-    .getByRole("button", { name: "Clear journal readings", exact: true })
-    .click();
+  await openClear(page);
   await log(other, "Psalm 23", "keep this");
   await page
     .getByRole("dialog")

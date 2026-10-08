@@ -42,6 +42,10 @@ test("all palette buckets render at minimum and focused scales without losing me
     db.close();
   });
   await page.reload();
+  await page
+    .getByRole("button", { name: "Go to passage", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Map display/ }).click();
   const canvas = page.getByRole("img", { name: /verse map/ });
   for (const stride of [4, 8, 14]) {
     if (stride > 4)
