@@ -24,3 +24,12 @@ __MACOSX/
 .AppleDouble
 .LSOverride
 Icon[]
+
+# Jekyll website preview/build output
+_site/
+site/_site/
+site/.jekyll-cache/
+site/.sass-cache/
+site/.bundle/
+site/vendor/
+site/Gemfile.lock

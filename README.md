@@ -2,6 +2,18 @@
 
 A local-first, verse-level map of your Bible reading. Version 0.2.
 
+## Hosted website and demo
+
+Visit [the project website](https://travisseitler.github.io/jot-and-tittle/) or
+[open the app](https://travisseitler.github.io/jot-and-tittle/app/).
+The hosted app stores each visitor's journals in that visitor's browser, just
+like a local copy. **Explore a sample map** provides a demo without changing
+personal readings.
+
+The website source lives in `site/`. The Pages workflow builds the website and
+current app together on each push to `main`, publishing the app under `/app/`.
+See [the website README](site/README.md) for preview and publishing instructions.
+
 ## Run locally
 
 Requires Node.js 22 or later, npm, and Python 3 (used only to bundle the downloadable source).
