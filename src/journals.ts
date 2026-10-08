@@ -1,4 +1,6 @@
 import {
+  deriveStats,
+  mergeRanges,
   serialize,
   deserialize,
   migrateReadingDate,
@@ -7,6 +9,7 @@ import {
 } from "./domain";
 export const DEFAULT_JOURNAL_ID = "journal-default";
 export interface Journal {
+  archived?: boolean;
   id: string;
   name: string;
   createdAt: string;
@@ -15,7 +18,14 @@ export interface Journal {
 export interface JournalReading extends Reading {
   journalId: string;
 }
+export interface TrashEntry {
+  id: string;
+  deletedAt: string;
+  expiresAt: string;
+  readings: JournalReading[];
+}
 export interface JournalState {
+  trash?: TrashEntry[];
   journals: Journal[];
   readings: JournalReading[];
   activeJournalId: string;
@@ -82,6 +92,10 @@ export function serializeJournals(
   };
 }
 export function deserializeJournals(input: unknown): JournalImport {
+  if (input && typeof input === "object" && "trash" in input)
+    throw new Error(
+      "Backups do not support Trash. Restore deleted readings before exporting them.",
+    );
   const x = input as ReturnType<typeof serializeJournals>;
   if (x?.version === 1)
     return {
@@ -118,7 +132,12 @@ export function deserializeJournals(input: unknown): JournalImport {
     for (const d of [j.createdAt, j.updatedAt])
       if (typeof d !== "string" || !Number.isFinite(Date.parse(d)))
         throw new Error("A journal contains an invalid date.");
+    if (j.archived !== undefined && typeof j.archived !== "boolean")
+      throw new Error("Invalid archive status.");
+    if (j.id === DEFAULT_JOURNAL_ID && j.archived)
+      throw new Error("The default Journal cannot be archived.");
     journals.push({
+      ...(j.archived !== undefined ? { archived: j.archived } : {}),
       id: j.id,
       name,
       createdAt: new Date(j.createdAt).toISOString(),
@@ -211,4 +230,28 @@ export function describeConflict(kind: string) {
     default:
       return "Another tab changed this record before it could be saved.";
   }
+}
+
+export function aggregateStats(readings: JournalReading[]) {
+  const encounters = new Map<string, JournalReading>();
+  for (const reading of readings) {
+    const key = reading.encounterId || reading.id;
+    const existing = encounters.get(key);
+    if (existing)
+      existing.ranges = mergeRanges([...existing.ranges, ...reading.ranges]);
+    else encounters.set(key, { ...reading, ranges: [...reading.ranges] });
+  }
+  return deriveStats([...encounters.values()]);
+}
+export function journalScopeIds(
+  journals: Journal[],
+  mode: string,
+  destination: string,
+  selected: string[],
+) {
+  return mode === "all"
+    ? journals.filter((j) => !j.archived).map((j) => j.id)
+    : mode === "selected"
+      ? selected.filter((id) => journals.some((j) => j.id === id))
+      : [destination];
 }

@@ -16,6 +16,7 @@ export interface Range {
   end: number;
 }
 export interface Reading {
+  encounterId?: string;
   id: string;
   startedAt: string;
   datePrecision?: "date" | "instant";
@@ -192,25 +193,49 @@ export function mergeRanges(ranges: Range[]): Range[] {
 }
 export function parsePassage(input: string): Range[] {
   if (!input.trim()) throw new Error("Enter a passage to continue.");
-  const parts = input.replace(/[–—]/g, "-").split(";");
-  let previous: number | null = null;
-  const ranges = parts.map((part) => {
-    if (!part.trim()) throw new Error("Add a passage after the semicolon.");
-    const ends = part.trim().split("-");
-    if (ends.length > 2)
-      throw new Error(
-        "Use one dash per range and semicolons between passages.",
-      );
-    const a = endpoint(ends[0], previous, false);
-    previous = a.book;
-    const z =
-      ends.length === 2
-        ? endpoint(ends[1], a.book, true, a.hasVerse ? a.chapter : null)
-        : endpoint(ends[0], previous, true);
-    if (z.index < a.index)
-      throw new Error("The end of a passage must follow its beginning.");
-    return { start: a.index, end: z.index };
-  });
+  const groups = input
+    .replace(/[‐‑‒–—−]/g, "-")
+    .replace(/\s*:\s*/g, ":")
+    .split(";");
+  let previousBook: number | null = null;
+  const ranges: Range[] = [];
+  for (const group of groups) {
+    if (!group.trim()) throw new Error("Add a passage after the semicolon.");
+    let context: ReturnType<typeof endpoint> | null = null;
+    for (const part of group.split(",")) {
+      if (!part.trim())
+        throw new Error(
+          "Add a reference after the comma; trailing or empty items are not allowed.",
+        );
+      const ends = part.trim().split("-");
+      if (ends.length > 2)
+        throw new Error(
+          "Use one dash per range and commas or semicolons between references.",
+        );
+      if (ends.some((end) => !end.trim()))
+        throw new Error("A range needs a reference on both sides of the dash.");
+      if (context && context.chapter === null && /^\d+$/.test(ends[0].trim()))
+        throw new Error(
+          "Shorthand after a whole book is ambiguous. Include the book and chapter, such as John 3.",
+        );
+      const inheritedChapter: number | null = context?.hasVerse
+        ? context.chapter
+        : null;
+      const fallbackBook: number | null = context?.book ?? previousBook;
+      const a = endpoint(ends[0], fallbackBook, false, inheritedChapter);
+      const z: ReturnType<typeof endpoint> =
+        ends.length === 2
+          ? endpoint(ends[1], a.book, true, a.hasVerse ? a.chapter : null)
+          : endpoint(ends[0], fallbackBook, true, inheritedChapter);
+      if (z.index < a.index)
+        throw new Error(
+          "The end of a passage must follow its beginning. Bare numbers after a verse mean verses; write chapter:verse or repeat the book for a chapter.",
+        );
+      ranges.push({ start: a.index, end: z.index });
+      context = z;
+      previousBook = a.book;
+    }
+  }
   return mergeRanges(ranges);
 }
 export function reference(id: number) {
@@ -350,7 +375,13 @@ export function deserialize(input: unknown): Reading[] {
       !r.ranges.length
     )
       throw new Error("A reading is missing its passage or notes.");
+    if (
+      r.encounterId !== undefined &&
+      (typeof r.encounterId !== "string" || !r.encounterId.trim())
+    )
+      throw new Error("Invalid encounter identity.");
     return {
+      ...(r.encounterId ? { encounterId: r.encounterId } : {}),
       id: r.id,
       originalInput: r.originalInput,
       notes: r.notes,
@@ -422,11 +453,11 @@ export function sampleReadings(): Reading[] {
 // Recency changes hue (dry brown to fresh green); frequency changes lightness.
 // Keep the two channels independent, with neutral gray reserved for unrecorded verses.
 export const recencyLabels = [
-  "Over a year",
-  "3–12 months",
-  "1–3 months",
-  "7–30 days",
-  "1–7 days",
+  "365+ days",
+  "90–364 days",
+  "30–89 days",
+  "7–29 days",
+  "1–6 days",
   "Today / within 24 hours",
 ];
 export const frequencyLabels = [
@@ -437,12 +468,12 @@ export const frequencyLabels = [
   "25–49 readings",
   "50+ readings",
 ];
-const leafHues = [28, 43, 63, 82, 102, 119];
-const leafLightness = [80, 69, 58, 48, 38, 29];
+const leafHues = [28, 45, 63, 85, 110, 145];
+const leafLightness = [70, 60, 50, 41, 32, 24];
 export const combinedPalette = leafLightness.map((lightness, frequency) =>
   leafHues.map(
     (hue, recency) =>
-      `hsl(${hue} ${26 + recency * 2 + frequency}% ${lightness}%)`,
+      `hsl(${hue} ${46 + recency * 3 + frequency * 2}% ${lightness}%)`,
   ),
 );
 export function metricColor(
