@@ -1451,7 +1451,7 @@ function App() {
                   </div>
                   <div>
                     <dt>Data format / database schema</dt>
-                    <dd>Version 2 / Version 2</dd>
+                    <dd>Version 3 / Version 3</dd>
                   </div>
                   <div>
                     <dt>Offline use</dt>
