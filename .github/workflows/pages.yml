@@ -32,6 +32,8 @@ jobs:
           destination: ./_site
       - name: Add production app
         run: |
+          # The Jekyll container creates root-owned output on the runner.
+          sudo chown -R "$(id -u):$(id -g)" _site
           mkdir -p _site/app
           cp -R dist/. _site/app/
           cp LICENSE _site/app/LICENSE
