@@ -54,8 +54,8 @@ export function EmptyMapDemo() {
       </svg>
       <figcaption>
         <span>
-          <i aria-hidden="true" /> A little reading, a growing map{" "}
-          <small>Illustrative demo</small>
+          <i aria-hidden="true" /> How recorded readings color the map{" "}
+          <small>Illustration · no readings saved</small>
         </span>
         <button
           className="quiet demo-pause"

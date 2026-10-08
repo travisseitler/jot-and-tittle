@@ -84,9 +84,9 @@ test("sample context remains consistent and avoids personal editing controls", a
 }, testInfo) => {
   await open(page);
   await page
-    .getByRole("button", { name: "Explore sample data", exact: true })
+    .getByRole("button", { name: "Explore sample readings", exact: true })
     .click();
-  await expect(page.locator("header")).toContainText("Example data");
+  await expect(page.locator("header")).toContainText("Sample readings");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.screenshot({
     path: testInfo.outputPath("map-overview.png"),
@@ -98,7 +98,9 @@ test("sample context remains consistent and avoids personal editing controls", a
   await expect(page.locator(".history-row")).toHaveCount(80);
   await expect(page.locator(".reading-actions")).toHaveCount(0);
   await page.locator(".reading-title").first().click();
-  await expect(page.locator(".reading-detail")).toContainText("Example data");
+  await expect(page.locator(".reading-detail")).toContainText(
+    "Sample readings",
+  );
   await expect(
     page.getByRole("button", { name: "Edit reading", exact: true }),
   ).toHaveCount(0);

@@ -10,7 +10,7 @@ This document governs behavior and meaning. [tokens-r2.json](tokens-r2.json) gov
 
 Evidence: [original product brief excerpt](original-spec-excerpt.md), source inspection, [functional research](scholarship-design-research.md), [visual audit](visual-audit-findings.md), and subagent reviews of [workflow coverage](review-workflow-coverage.md), [visual consistency](review-visual-consistency.md), and [interaction/accessibility](review-interaction-accessibility.md). Competitor dimensions are measured samples or explicitly labeled screenshot estimates, not Jot & Tittle requirements. This document's exact defaults are design decisions.
 
-Scope is the four existing in-app views: **Map, History, Patterns, Your data**, plus journals, capture/edit, inspection, filtering, backup/import and recovery. Text view and the adjacent detail pattern are included additions. Preserve React/TypeScript/Vite, local records, the 66-book Protestant canon and KJV-compatible 31,102-verse numbering. Do not add bundled Bible text, commentary, accounts, cloud synchronization, telemetry, spiritual scores, streak incentives or an independent verse-note notebook through this design work.
+Scope is the four existing in-app views: **Map, History, Patterns, Your data**, plus journals, capture/edit, inspection, filtering, backup/import and recovery. Verse list and the adjacent detail pattern are included additions. Preserve React/TypeScript/Vite, local records, the 66-book Protestant canon and KJV-compatible 31,102-verse numbering. Do not add bundled Bible text, commentary, accounts, cloud synchronization, telemetry, spiritual scores, streak incentives or an independent verse-note notebook through this design work.
 
 ## 2. Philosophy and product language
 
@@ -119,7 +119,7 @@ Use genuine ARIA tabs only for tab panels with their keyboard contract. Map metr
 
 History rows are flat, 16px vertical padding, 12px content gaps and subtle divider. Passage first; date/journal next; count/preview last. Selected row has selection surface and a 3px forest edge. Rows grow for content; full notes use body typography. Touch/keyboard More actions expose visible Move/Copy/Delete labels.
 
-Desktop detail is a labeled nonmodal complementary region: no inert background, modal semantics or trap. Explicit Inspect focuses its reference heading; preview does not steal focus. Close restores the initiating control or a stable replacement. Handle Escape within the detail surface, outside editing fields/forms, using that stored origin; route/browser Back follows the same return-state rule. Phone detail is a separate view with Back to map/Text view, heading focus and return-state restoration.
+Desktop detail is a labeled nonmodal complementary region: no inert background, modal semantics or trap. Explicit Inspect focuses its reference heading; preview does not steal focus. Close restores the initiating control or a stable replacement. Handle Escape within the detail surface, outside editing fields/forms, using that stored origin; route/browser Back follows the same return-state rule. Phone detail is a separate view with Back to map/Verse list, heading focus and return-state restoration.
 
 Dialog: panel surface, essential border, radius 12px; width min(560px, viewport minus 32px), padding 24px desktop/16px phone; max-height available dynamic viewport minus 32px. Title 24/32, close ≥44px, section gap 24px, actions gap 8px and wrap. Long content scrolls; context/actions stay reachable. Modal background is inert; focus contained; Escape/Cancel when safe; restoration on close. Long informational dialogs initially focus a heading. Permanent confirmations initially focus Cancel. Empty dialogs keep Tab on the dialog itself.
 
@@ -159,7 +159,7 @@ Selection uses dark outer and light inner locators, an explicit reference and fo
 
 ## 8. Equivalent text access, keyboard and touch
 
-Text view is first-class visible content, reachable before interacting with the map. A shared evidence model supplies applied journals/date period and calculation time. Geography-aware selectors supply map, legend, Text view and passage detail; record/session summaries and Patterns use evidence filters without geography. Metric changes presentation, not the evidence model. Presentation changes do not alter recording destination. Persist presentation locally as a proposed preference.
+Verse list is first-class visible content, reachable before interacting with the map. A shared evidence model supplies applied journals/date period and calculation time. Geography-aware selectors supply map, legend, Verse list and passage detail; record/session summaries and Patterns use evidence filters without geography. Metric changes presentation, not the evidence model. Presentation changes do not alter recording destination. Persist presentation locally as a proposed preference.
 
 Desktop uses a semantic table with scope caption, column headers, reference row headers and Inspect actions. Phone uses a labeled ordered list. Only the active representation enters the accessibility tree. Rows include every in-scope verse, including zeros, in canonical order; show reference, integer count, exact last date or No readings in this view, note count/access and full record context in detail. Provide an all-time last date separately where it explains filtered zero: all dates in the same selected journals, excluding Trash. With zero journals selected, return zero count, no date and no matching notes while retaining navigable canonical rows. Notes follow the active filters and are attributed to their reading/date/journal; do not multiply one multi-verse record in detail totals.
 
@@ -228,7 +228,7 @@ These state families must receive design/implementation evidence; component spec
 - Shell: four destinations, long names, current/evidence/destination differences, sample/archive notices and all responsive bands.
 - Initialization/first use: loading, blocked storage, true personal empty, paused/reduced-motion illustration, labeled sample and return to personal.
 - Filters: collapsed/expanded, draft/applied, modes, invalid custom dates, zero selected, chip removal, reset and filtered empty.
-- Map: whole/book/chapter/cross-book scope, invalid/discontinuous geography, all metrics, Flow/Fixed, size endpoints/reset, full legends, hover/selected/focus at edges and palette extremes, never/filtered-zero/future date, text inspector and complete Text view.
+- Map: whole/book/chapter/cross-book scope, invalid/discontinuous geography, all metrics, Flow/Fixed, size endpoints/reset, full legends, hover/selected/focus at edges and palette extremes, never/filtered-zero/future date, text inspector and complete Verse list.
 - Capture/edit: blank/typing/valid/invalid/date-invalid/multi-range/long-note/legacy, busy, saved/hidden-by-view, storage failure, retained draft and every applicable conflict branch.
 - History/detail: day groups/search/no match/empty/long content/read-only, move/copy eligibility and failure/success, delete/clear snapshot and accurate targets.
 - Journals: create/rename validations, mixed active/archive manager, restore, default restrictions, blocked/permitted deletion and concurrent lifecycle conflicts.
@@ -238,7 +238,7 @@ These state families must receive design/implementation evidence; component spec
 
 Existing mapping: shell/capture/history/patterns/data/journal/conflict/recovery JSX in `src/main.tsx`; `ReadingViewControls` filters; `MapDisplayControls` display; `Heatmap`/`layout.ts` geometry; `MetricLegend` data key; `ReadingDetail` record notes; `Dialog` modal behavior; `domain.ts` parser/counts/palette; `journals.ts` encounter aggregation; `storage.ts` persistence/recovery; `backup.ts` serialization. TextView, adjacent detail, FieldFeedback, RecoveryNotice and ImportPreview are proposed component extractions/additions, not existing implementation claims.
 
-Implementation sequence: (1) shared tokens/type/responsive shell and combinable controls; (2) shared evidence model, Text view, exact inspection and focus/touch paths; (3) capture/draft/validation/storage conflicts; (4) journal/transfer/recovery/import consistency; (5) Patterns/long-content polish; (6) design fidelity, accessibility and real-user validation. Preserve domain/storage semantics unless a separately documented correction is needed. Do not encode layout changes in data migrations.
+Implementation sequence: (1) shared tokens/type/responsive shell and combinable controls; (2) shared evidence model, Verse list, exact inspection and focus/touch paths; (3) capture/draft/validation/storage conflicts; (4) journal/transfer/recovery/import consistency; (5) Patterns/long-content polish; (6) design fidelity, accessibility and real-user validation. Preserve domain/storage semantics unless a separately documented correction is needed. Do not encode layout changes in data migrations.
 
 ## 15. Verification, research and acceptance
 
@@ -255,10 +255,23 @@ Planned formative research: 5–8 actual/prospective returning readers, includin
 1. Log multiple passages with date/destination and a two-paragraph note; one correct record, no accidental duplicate. Initial speed hypothesis: under 60 seconds excluding note composition.
 2. Find a filtered zero-count verse and distinguish no readings in this view from never recorded, without color dependence.
 3. Inspect/edit a long note and return with reference, filters, page/scroll and useful focus preserved, on desktop and phone.
-4. Navigate Text view by scope/search/paging through a final verse, inspecting count/date without canvas use or thousands of Tab presses.
+4. Navigate Verse list by scope/search/paging through a final verse, inspecting count/date without canvas use or thousands of Tab presses.
 5. Scroll/pinch the phone map and inspect through reference controls, without accidental selection/logging or blocked browser zoom.
 6. Correct invalid passage/date and recover from persistence failure without re-entering unaffected input.
 7. Explain a duplicate/name-collision import preview, cancel without changes, then merge once; delete/restore through the appropriate recovery path.
 8. Interpret frequency, recency and combined examples against exact dates/counts; identify ambiguous hues and revise legend/defaults if needed.
 
 Repeated task failure or an inaccessible primary path blocks acceptance; document and retest affected journeys. Default pagination, interaction speed and color discrimination are hypotheses, not claimed findings. All future revisions must update this document, tokens, contract and relevant Penpot/export references together.
+
+## Information design refinement · 2026-10-08
+
+The information architect, marketing director, copywriter and social media marketer approved punchlist v3 before implementation. This refinement governs current copy where historical r2 reference boards show different wording; board IDs, tokens and geometry remain unchanged.
+
+- P1: Keep the wordmark descriptor, use operational navigation and footer labels, and explain the nonjudgmental philosophy once in About. Remove decorative sidebar/footer slogans. The map reflection card points to reading exploration.
+- P2: First-use heading identifies the verse map; welcome explains Bible passages, square/color meaning and the absence of Bible text. Demo is explicitly an unsaved illustration. Archived inspection cannot enter personal onboarding.
+- P3: Use Sample readings consistently in exploration, attribution and announcements. Keep sample separation and the real recording destination explicit.
+- P4: Explain linked-record verse counting beside affected numbers, with a two-journal example in aggregate Patterns. Session totals count saved records. Sample and single-journal rules remain distinct; Patterns spans all books in the viewed journals/dates. Archive-empty guidance uses the existing return action.
+- P5: Verse list is the visible name for the existing TextView presentation: references, counts, dates and personal notes, without Bible text. Keep search, zero verses and paging intact. Inspection guidance is presentation-specific; How it works stays visible at every viewport.
+- P6: Distinguish personal first use from results excluded by journals/dates using global saved-history context. Archive-first recovery consistently names Return to active journal on Map, History and Patterns; archive log actions remain disabled. Search recovery stays local to the query.
+- P7: Your data names backup/import tasks and the browser/device boundary. Preserve all-journal scope, filters, excluded Trash, initiated-download status and the need to verify the saved file. Release downloads remain separate from personal backups.
+- P8: Put passage-separator guidance at capture and translate metric/layout choices in their dialog. About explains gray by metric, journal viewing versus recording, browser-local backups and the no-Bible-text boundary; retain keyboard and color-key detail.

@@ -1014,7 +1014,6 @@ function App() {
             <MoreHorizontal size={16} />
           </button>
         </div>
-        <div className="nav-label">YOUR SCRIPTURE, MAPPED</div>
         <nav aria-label="Main navigation">
           {[
             { id: "map", icon: Grid2X2, label: "Verse map" },
@@ -1069,29 +1068,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <div className="tiny-grid">
-            {Array.from({ length: 35 }, (_, i) => (
-              <i
-                key={i}
-                style={{
-                  background: ["#d9e3ca", "#b0c88b", "#779954", "#e8eadf"][
-                    i % 4
-                  ],
-                }}
-              />
-            ))}
-          </div>
-          <p>
-            Every verse.
-            <br />A little more visible.
-          </p>
-          <span>
-            A record of where you’ve been,
-            <br />
-            and room to see what’s next.
-          </span>
-        </div>
         <div className="sidebar-bottom">
           <div className="local-status">
             <span /> This browser on this device
@@ -1099,7 +1075,6 @@ function App() {
           <button onClick={() => setAbout(true)}>
             About Jot & Tittle <ArrowUpRight size={13} />
           </button>
-          <small>Made for attention, not achievement.</small>
         </div>
       </aside>
       <main id="main-content" tabIndex={-1} hidden={modal}>
@@ -1107,9 +1082,9 @@ function App() {
           <div>
             <span
               className="breadcrumb"
-              title={sample ? "Example data" : currentJournal.name}
+              title={sample ? "Sample readings" : currentJournal.name}
             >
-              {sample ? "Example data" : currentJournal.name}
+              {sample ? "Sample readings" : currentJournal.name}
             </span>
             <ChevronRight size={12} />
             <span>
@@ -1223,8 +1198,8 @@ function App() {
               </div>
               <h1 tabIndex={-1}>
                 {page === "map"
-                  ? !allReadings.length && !sample && !exploreEmpty
-                    ? "Your first reading"
+                  ? !allReadings.length && !sample && !exploreEmpty && !readOnly
+                    ? "Your verse map"
                     : "Your reading, at a glance"
                   : page === "history"
                     ? "Reading history"
@@ -1239,7 +1214,7 @@ function App() {
                     ? "The passages you’ve read, one reading at a time."
                     : page === "insights"
                       ? "Explore the places you return to and the parts you’ve yet to record."
-                      : "Private by default. Portable whenever you need it."}
+                      : "Back up, restore, and manage readings saved in this browser."}
               </p>
             </div>
             <button className="quiet" onClick={() => setAbout(true)}>
@@ -1281,8 +1256,8 @@ function App() {
           {sample && (
             <div className="sample-banner">
               <span>
-                <Leaf size={16} /> Sample readings · your personal history stays
-                separate.
+                <Leaf size={16} /> Sample readings · separate from your
+                journals.
               </span>
               <button onClick={() => setSample(false)}>
                 Return to my readings <X size={14} />
@@ -1291,6 +1266,7 @@ function App() {
           )}
           {page === "map" &&
             !sample &&
+            !readOnly &&
             !allReadings.length &&
             !exploreEmpty &&
             ready &&
@@ -1298,10 +1274,12 @@ function App() {
               <section className="welcome">
                 <div className="welcome-composition">
                   <div className="welcome-copy">
-                    <h2 className="sr-only">Log your first reading</h2>
+                    <h2>Start with a passage</h2>
                     <p>
-                      Record a chapter, a few verses, or several passages
-                      together. Your map grows with your reading.
+                      Log a chapter, a few verses, or several Bible passages
+                      together. Each square represents a verse; color shows when
+                      and how often you’ve recorded it. Bible text is not
+                      included.
                     </p>
                     <div className="welcome-actions">
                       <button className="primary" onClick={() => openLog()}>
@@ -1311,7 +1289,7 @@ function App() {
                         className="secondary"
                         onClick={() => setSample(true)}
                       >
-                        Explore sample data
+                        Explore sample readings
                       </button>
                     </div>
                   </div>
@@ -1333,7 +1311,7 @@ function App() {
               </section>
             )}
           {page === "map" &&
-            (sample || allReadings.length > 0 || exploreEmpty) && (
+            (sample || allReadings.length > 0 || exploreEmpty || readOnly) && (
               <>
                 <dl
                   className="reading-summary"
@@ -1357,7 +1335,7 @@ function App() {
                     <dd className="summary-date">
                       {sorted[0]
                         ? formatDate(sorted[0].startedAt)
-                        : "No readings yet"}
+                        : "No readings in this view"}
                     </dd>
                   </div>
                 </dl>
@@ -1386,7 +1364,7 @@ function App() {
                               aria-pressed={presentation === "text"}
                               onClick={() => setPresentation("text")}
                             >
-                              Text view
+                              Verse list
                             </button>
                           </div>
                           <button
@@ -1570,17 +1548,17 @@ function App() {
                         )}
                       </div>
                       <p className="counting-rule">
-                        {!archivedViewId &&
-                        journalScopeMode !== "single" &&
-                        !sample
-                          ? "Counts deduplicate shared encounters across selected journals."
-                          : "Counts reflect reading records in this journal."}
+                        {sample
+                          ? "Verse counts reflect sample readings."
+                          : !archivedViewId && journalScopeMode !== "single"
+                            ? "Linked records of the same reading count once per verse in this view."
+                            : "Verse counts include each reading saved in this journal."}
                       </p>
                       <div className="map-footer">
                         <span>
-                          <span className="dot-square" /> One square, one verse{" "}
-                          <span className="footer-separator">·</span> Inspect a
-                          verse for counts and dates
+                          {presentation === "map"
+                            ? "Each square is a verse. Select a square to inspect its reference, counts, and dates."
+                            : "Select a verse to inspect its counts and dates."}
                         </span>
 
                         <MetricLegend metric={metric} />
@@ -1604,7 +1582,7 @@ function App() {
                                 ranges[0].start > scope.end
                               )
                                 throw new Error(
-                                  "This verse is outside the current passage scope. Use Text view to find it and explicitly change passage scope.",
+                                  "This verse is outside the current passage scope. Use Verse list to find it and explicitly change passage scope.",
                                 );
                               setInspectedVerse(ranges[0].start);
                               inspectVerse(ranges[0].start);
@@ -1685,7 +1663,7 @@ function App() {
                       origin={origin.current}
                       returnLabel={
                         presentation === "text"
-                          ? "Back to Text view"
+                          ? "Back to Verse list"
                           : "Back to map"
                       }
                     >
@@ -1739,7 +1717,7 @@ function App() {
                               <span>{formatDate(r.startedAt)}</span>
                               <small>
                                 {sample
-                                  ? "Example data"
+                                  ? "Sample readings"
                                   : journals.find((j) => j.id === r.journalId)
                                       ?.name}{" "}
                                 · {r.ranges.map(rangeLabel).join("; ")}
@@ -1786,7 +1764,7 @@ function App() {
                       reading={readingDetail}
                       journalName={
                         sample
-                          ? "Example data"
+                          ? "Sample readings"
                           : journals.find(
                               (j) => j.id === readingDetail.journalId,
                             )?.name || "Journal"
@@ -1830,7 +1808,7 @@ function App() {
                             </strong>
                             <span>
                               {sample
-                                ? "Example data"
+                                ? "Sample readings"
                                 : journals.find((j) => j.id === r.journalId)
                                     ?.name}
                             </span>
@@ -1845,23 +1823,34 @@ function App() {
                     ) : (
                       <div className="empty-recent">
                         <BookOpen size={22} />
-                        <p>Your readings will appear here.</p>
-                        <button onClick={() => openLog()}>
-                          Record your first passage <ArrowRight size={14} />
+                        <p>
+                          {readOnly
+                            ? "No readings from this archived journal appear in this view. Return to active journal to view your current readings."
+                            : allReadings.length > 0 || sample
+                              ? "No readings in this view. Choose View readings to change journals or dates."
+                              : "Your readings will appear here."}
+                        </p>
+                        <button
+                          onClick={() => openLog()}
+                          disabled={!storageReady || readOnly}
+                        >
+                          {allReadings.length > 0 || sample || readOnly
+                            ? "Log a reading"
+                            : "Log your first reading"}{" "}
+                          <ArrowRight size={14} />
                         </button>
                       </div>
                     )}
                   </section>
                   <section className="reflection-card">
-                    <span className="eyebrow">A LITTLE PERSPECTIVE</span>
-                    <h3>A map, not a measure.</h3>
+                    <h3>Explore your reading</h3>
                     <p>
-                      These marks describe where you’ve read. They don’t measure
-                      your faith, your effort, or your worth.
+                      See the books and verses in the journals and dates you’re
+                      viewing.
                     </p>
                     {!active.length ? (
                       <button onClick={() => setSample(true)}>
-                        Explore sample data <ArrowUpRight size={14} />
+                        Explore sample readings <ArrowUpRight size={14} />
                       </button>
                     ) : (
                       <button onClick={() => setPage("insights")}>
@@ -1880,7 +1869,7 @@ function App() {
                 <HistoryView
                   sorted={sorted}
                   sessionCount={active.length}
-                  hasReadings={!!readings.length}
+                  hasReadings={allReadings.length > 0}
                   sample={sample}
                   readOnly={readOnly}
                   journals={journals}
@@ -1914,7 +1903,7 @@ function App() {
                   reading={readingDetail}
                   journalName={
                     sample
-                      ? "Example data"
+                      ? "Sample readings"
                       : journals.find((j) => j.id === readingDetail.journalId)
                           ?.name || "Journal"
                   }
@@ -1938,6 +1927,9 @@ function App() {
             <PatternsView
               stats={stats}
               sessionCount={active.length}
+              sample={sample}
+              hasReadings={allReadings.length > 0}
+              readOnly={readOnly}
               deduplicatesEncounters={
                 !archivedViewId && journalScopeMode !== "single" && !sample
               }
@@ -1961,17 +1953,17 @@ function App() {
               <div className="data-banner">
                 <ShieldCheck size={24} />
                 <div>
-                  <h2>At home on your device.</h2>
+                  <h2>Saved in this browser</h2>
                   <p>
                     Your history stays in this browser on this device. There’s
-                    no account, cloud sync, or reading telemetry.
+                    no account, cloud sync, or tracking of your reading.
                   </p>
                 </div>
               </div>
               <div className="data-grid">
                 <section className="panel data-card">
                   <Download size={25} />
-                  <h2>Personal-data backup</h2>
+                  <h2>Back up all journals</h2>
                   <p role="status" aria-label="Backup status">
                     {backup
                       ? `Most recent export initiated: ${new Date(backup.initiatedAt).toLocaleString()}.`
@@ -1981,11 +1973,13 @@ function App() {
                       : "All current journals and readings match that export."}
                   </p>
                   <p>
-                    Download all {allReadings.length} reading sessions across{" "}
-                    {journals.length} journals as a readable JSON file,
-                    including empty and archived journals, dates, passages, and
-                    notes. View filters do not limit the backup; Trash is
-                    excluded until restored.
+                    Download all {allReadings.length}{" "}
+                    {allReadings.length === 1 ? "reading" : "readings"} across{" "}
+                    {journals.length}{" "}
+                    {journals.length === 1 ? "journal" : "journals"}, with
+                    dates, passages, and notes. Includes empty and archived
+                    journals. View filters do not limit the backup. Trash is
+                    excluded; restore deleted readings before exporting.
                   </p>
                   <button
                     className="primary"
@@ -1996,18 +1990,17 @@ function App() {
                     <Download size={15} />
                   </button>
                   <p>
-                    Initiating a download does not confirm the file was
-                    successfully saved. Check your downloads and keep a copy
-                    somewhere safe. Browser-local storage can be cleared or
-                    evicted.
+                    Downloading does not confirm the file was saved. Check your
+                    Downloads and keep a copy somewhere safe. Browser storage
+                    can be cleared or removed.
                   </p>
                 </section>
                 <section className="panel data-card">
                   <Upload size={25} />
-                  <h2>Bring your readings back</h2>
+                  <h2>Import a backup</h2>
                   <p>
-                    Import a Jot & Tittle export. You’ll review the journals and
-                    readings before merging them. Older backups are imported
+                    Choose a Jot & Tittle JSON backup, then review the journals
+                    and readings before adding them. Older backups are imported
                     into Journal.
                   </p>
                   <button
@@ -2154,7 +2147,7 @@ function App() {
                     className="secondary source-link"
                     href="https://github.com/travisseitler/jot-and-tittle/releases/latest"
                   >
-                    Download source code <Download size={15} />
+                    App releases &amp; downloads <Download size={15} />
                   </a>
                 </div>
               </details>
@@ -2162,9 +2155,8 @@ function App() {
           )}
           <footer className="page-footer">
             <span>JOT & TITTLE</span>
-            <span>Every verse leaves a mark.</span>
             <button onClick={() => setPage("data")}>
-              <ShieldCheck size={12} /> Private. Local. Yours.
+              <ShieldCheck size={12} /> Your data &amp; backups
             </button>
           </footer>
         </div>
@@ -2220,6 +2212,11 @@ function App() {
             setZoom={setZoom}
           />
           <p>
+            Combined shows when and how often a verse was recorded. Recency
+            shows when; Frequency shows how often. Flow fits the available
+            width. Fixed keeps 160 columns and may scroll.
+          </p>
+          <p>
             Cell size changes the verse marks. Browser zoom remains available.
             Book and chapter structure appears during inspection.
           </p>
@@ -2253,7 +2250,8 @@ function App() {
               />
             </label>
             <small id="passage-help" className="field-help">
-              Try John 3:16 or Psalm 23.
+              Enter a verse, chapter, or range. Separate passages with
+              semicolons.
             </small>
             <details className="reference-examples">
               <summary>More reference examples</summary>
@@ -3177,22 +3175,26 @@ function App() {
           </p>
           <div className="about-items">
             <p>
-              <strong>One square for every verse.</strong> The map follows
-              canonical order, from Genesis to Revelation, without breaks
-              between books.
+              <strong>One square for every verse.</strong> The map follows Bible
+              order, from Genesis to Revelation, without breaks between books.
             </p>
             <p>
               <strong>Three ways to look.</strong> Combined uses brown-to-green
-              color for recency and pale-to-dark intensity for frequency, like
-              leaves changing over time. Recency and Frequency show each on its
-              own. Gray means no recorded readings. Hover or use arrow keys to
-              reveal a reference and its book.
+              color for when a verse was last recorded and pale-to-dark
+              intensity for how often. Recency and Frequency show each
+              separately. In Recency and Combined, gray means no qualifying
+              record or date in this view; future recorded dates may be gray
+              despite a nonzero count. In Frequency, gray means no records in
+              this view. Inspect for exact counts and dates. Use Verse list for
+              references, counts, dates, and Inspect actions without relying on
+              color. Hover or use arrow keys to reveal a reference and its book.
             </p>
             <p>
-              <strong>Separate journals.</strong> Use Journal for your general
-              reading, or create Sermons, Small Group, Memorization, or any
-              journal you need. Each journal has its own map, history, and
-              patterns.
+              <strong>Separate journals.</strong> Keep different reading
+              contexts in separate journals. View one journal or combine
+              journals with View readings; choose where to save in the reading
+              form. Use Journal for general reading, or create Sermons, Small
+              Group, Memorization, or any journal you need.
             </p>
             <p>
               <strong>Go closer.</strong> Choose a book or chapter, or enter a
@@ -3200,9 +3202,13 @@ function App() {
               history.
             </p>
             <p>
-              <strong>Yours to keep.</strong> Readings stay on your device.
-              Export and import them from Your data. There are no streaks or
-              spiritual scores.
+              <strong>Yours to keep.</strong> Readings stay in this browser on
+              this device. Export and import backups from Your data.
+            </p>
+            <p>
+              <strong>Made for attention, not achievement.</strong> These marks
+              describe the readings you’ve recorded; they don’t measure your
+              faith, effort, or worth. No streaks or spiritual scores.
             </p>
             <p className="muted">
               The name comes from Matthew 5:18. Version 0.3.0 · Open-source
