@@ -1,6 +1,6 @@
 # Jot & Tittle
 
-A verse-by-verse map of your Bible reading. Version 0.2.
+A verse-by-verse map of your Bible reading. Version 0.3.0.
 
 Jot & Tittle helps you see where you have been in Scripture: which passages you
 have read, how recently you read them, and which ones you return to most often.
@@ -214,7 +214,7 @@ the browser. Private browsing is unsuitable for keeping a lasting reading histor
 
 **Download source code** opens the
 [latest GitHub release](https://github.com/travisseitler/jot-and-tittle/releases/latest),
-where you can download the app's program files once the first release is published.
+where you can download the app's program files.
 These files do not include your personal readings. Use **Export all journals**
 to back up your data.
 
@@ -227,7 +227,7 @@ recovery window. Export a backup before clearing readings you want to keep.
 
 For a ready-to-host copy, download **jot-and-tittle-build.zip** from the
 [latest release](https://github.com/travisseitler/jot-and-tittle/releases/latest)
-once a release is published. Extract it into any folder on your static web host.
+and extract it into any folder on your static web host.
 Its assets and offline worker use relative URLs; no particular folder name is
 required. Use HTTPS, or a local web server for testing.
 

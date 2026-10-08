@@ -2149,8 +2149,6 @@ function App() {
                     without build tools, download jot-and-tittle-build.zip.
                     Source-code archives contain code, tests, and setup
                     instructions and require a build before static hosting.
-                    Downloads will be available once the first release is
-                    published.
                   </p>
                   <a
                     className="secondary source-link"
@@ -3207,7 +3205,7 @@ function App() {
               spiritual scores.
             </p>
             <p className="muted">
-              The name comes from Matthew 5:18. Version 0.2 · Open-source
+              The name comes from Matthew 5:18. Version 0.3.0 · Open-source
               local-first application. Scripture text is not bundled.
             </p>
           </div>
