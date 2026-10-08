@@ -100,11 +100,11 @@ test("all palette buckets render at minimum and focused scales without losing me
     snapshot,
   );
 });
-test("render simulation reference sheet", async ({ page }) => {
+test("render simulation reference sheet", async ({ page }, testInfo) => {
   await page.setContent(readFileSync("audits/palette-reference.svg", "utf8"));
   await page.setViewportSize({ width: 1080, height: 1260 });
   await page.screenshot({
-    path: "/private/tmp/jot-palette.png",
+    path: testInfo.outputPath("jot-palette.png"),
     fullPage: true,
   });
 });
