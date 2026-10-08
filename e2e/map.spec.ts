@@ -94,7 +94,13 @@ test("touch viewport can log and tap a verse without page overflow", async ({
   await open(page);
   await log(page);
   const canvas = page.getByRole("img", { name: /verse map/ });
-  await canvas.tap({ position: { x: 1, y: 1 } });
+  // Bring the first cell below the sticky mobile navigation before tapping it.
+  await canvas.evaluate((el) => {
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    const navigation = document.querySelector(".sidebar")!;
+    window.scrollTo(0, top - navigation.getBoundingClientRect().height - 16);
+  });
+  await canvas.tap({ position: { x: 2, y: 2 } });
   await expect(
     page.getByRole("dialog", { name: "Genesis 1:1", exact: true }),
   ).toBeVisible();

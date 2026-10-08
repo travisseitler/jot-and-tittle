@@ -42,18 +42,18 @@ test("all palette buckets render at minimum and focused scales without losing me
     db.close();
   });
   await page.reload();
-  await page
-    .getByRole("button", { name: "Go to passage", exact: true })
-    .click();
   await page.getByRole("button", { name: /Map display/ }).click();
   const canvas = page.getByRole("img", { name: /verse map/ });
   for (const stride of [4, 8, 14]) {
-    if (stride > 4)
+    if (stride === 8) {
+      await page
+        .getByRole("button", { name: "Go to passage", exact: true })
+        .click();
       await page.getByLabel("Focus on a passage").fill("Genesis 1:1–2:5");
-    if (stride > 4)
       await page
         .getByRole("button", { name: "Focus passage", exact: true })
         .click();
+    }
     const before = stride === 4 ? 4 : stride === 8 ? 4 : 8;
     for (let current = before; current < stride; current += 2)
       await page.getByRole("button", { name: "Zoom in", exact: true }).click();
@@ -100,11 +100,11 @@ test("all palette buckets render at minimum and focused scales without losing me
     snapshot,
   );
 });
-test("render simulation reference sheet", async ({ page }) => {
+test("render simulation reference sheet", async ({ page }, testInfo) => {
   await page.setContent(readFileSync("audits/palette-reference.svg", "utf8"));
   await page.setViewportSize({ width: 1080, height: 1260 });
   await page.screenshot({
-    path: "/private/tmp/jot-palette.png",
+    path: testInfo.outputPath("jot-palette.png"),
     fullPage: true,
   });
 });

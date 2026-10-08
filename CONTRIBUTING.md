@@ -1,17 +1,77 @@
 # Contributing
 
-Run `npm install`, `npm test`, and `npm run build`. Keep scripture identity,
+## Start here
+
+You can try the app before setting up development tools:
+**[open the hosted app](https://travisseitler.github.io/jot-and-tittle/app/)**,
+which is available now, or read
+[the project introduction](https://travisseitler.github.io/jot-and-tittle/).
+Choose **Explore a sample map** to explore without changing personal readings.
+
+If you are new to terminals or Node.js, follow the README's
+[optional local setup](README.md#optional-run-your-own-copy). It explains what
+Node.js and npm do, how to open a terminal, how to stop and restart the app, and
+how to resolve common setup problems. You do not need development tools just to
+use the hosted app or report a problem.
+
+Each browser and address has its own journals. Before switching between the
+hosted app and a local copy, use **Your data → Export all journals** in the old
+copy, then import that JSON file using **Choose a JSON file** in the new copy.
+Check the imported journals and readings. Later changes stay separate; copies
+do not synchronize. See [backup guidance](README.md#keeping-your-readings-safe).
+
+## Set up for code changes
+
+Start with the local setup linked above, then install Python 3 if you plan to
+build the app. The [build instructions](README.md#optional-offline-use-and-hosting)
+explain the Python requirement and production preview.
+
+Run these commands in the terminal from the folder containing `package.json`,
+one at a time:
+
+```sh
+npm install
+npm test
+npm run build
+```
+
+- `npm install` downloads the software pieces the project needs. Repeat it when
+  dependencies change, such as after downloading a newer source copy.
+- `npm test` checks the app's core rules and storage behavior automatically. Read
+  the final results and resolve any failures before submitting a code change.
+- `npm run build` checks TypeScript and prepares the production files in `dist/`,
+  including offline support and the downloadable source archive.
+
+Use `npm run dev` to work on the app in your browser. Keep its terminal open;
+press **Ctrl+C** to stop it. Run the command again to restart it and open the exact
+**Local:** address it prints.
+
+## Development guidelines
+
+Keep scripture identity,
 reading records, derived statistics, persistence, and visualization separate.
 Add domain tests for parser changes and import/export changes. Check whole-Bible
 and focused views, keyboard navigation, mobile layouts, and offline operation.
 Never introduce reading telemetry, scores, streaks, or cloud transmission as a
 prerequisite for local use. New canon data needs its own versification identity.
 
-Browser regression tests run against a fresh production build on port 4173:
+## Browser regression tests
+
+Browser regression tests check user workflows in real browser engines. They run
+against a fresh production build on port 4173. In the commands below, `npx` runs
+tools installed with this project; `npm run` runs a named project task.
+
+Install the test browsers once, then run the suite:
 
 ```sh
 npx playwright install --with-deps chromium firefox webkit
 npm run test:e2e
+```
+
+To run only Chromium, open the interactive test runner, or view the last report,
+use the corresponding command:
+
+```sh
 npm run test:e2e -- --project=chromium
 npm run test:e2e:ui
 npx playwright show-report
@@ -57,6 +117,8 @@ Emulation is not physical-device
 or installed Safari/Chrome certification. Canvas tests assert pixel differences,
 geometry and hit testing rather than OS-dependent full-page screenshot baselines.
 The suite covers current behavior; add browser regressions with new workflows.
+
+## Formatting
 
 Formatting uses Prettier with two-space indentation and its other defaults.
 Run `npm run format` to format the project, or `npm run format:check` to check it.
