@@ -25,9 +25,11 @@ __MACOSX/
 .LSOverride
 Icon[]
 
-# Jekyll project site
-docs/_site/
-docs/.jekyll-cache/
-docs/.jekyll-metadata
-docs/.bundle/
+# Jekyll website preview/build output
 _site/
+site/_site/
+site/.jekyll-cache/
+site/.sass-cache/
+site/.bundle/
+site/vendor/
+site/Gemfile.lock

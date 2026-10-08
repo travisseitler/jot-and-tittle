@@ -272,7 +272,9 @@ function App() {
         setReady(true);
       });
     if ("serviceWorker" in navigator)
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker
+        .register(`${import.meta.env.BASE_URL}sw.js`)
+        .catch(() => {});
   }, []);
   useEffect(() => {
     const channel = storageChannel();
@@ -1891,7 +1893,7 @@ function App() {
                   </div>
                   <div>
                     <dt>Data format / database schema</dt>
-                    <dd>Version 2 / Version 2</dd>
+                    <dd>Version 3 / Version 3</dd>
                   </div>
                   <div>
                     <dt>Offline use</dt>
@@ -1908,14 +1910,15 @@ function App() {
                 <h2>Run Jot &amp; Tittle yourself</h2>
                 <p className="muted" style={{ margin: "12px 0 18px" }}>
                   This source-code download does not back up your personal data.
-                  Download the complete React + TypeScript source, tests, and
-                  setup instructions. Run it locally or host the static build on
-                  your own website.
+                  Visit the latest GitHub release. To host the app without build
+                  tools, download jot-and-tittle-build.zip. Source-code archives
+                  contain code, tests, and setup instructions and require a
+                  build before static hosting. Downloads will be available once
+                  the first release is published.
                 </p>
                 <a
                   className="secondary source-link"
-                  href="/jot-and-tittle-source.zip"
-                  download
+                  href="https://github.com/travisseitler/jot-and-tittle/releases/latest"
                 >
                   Download source code <Download size={15} />
                 </a>

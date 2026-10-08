@@ -1,10 +1,8 @@
-name: Project site
+name: Pages
 on:
   push:
     branches: [main]
-    paths: ["docs/**", ".github/workflows/pages.yml"]
   pull_request:
-    paths: ["docs/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,14 +12,29 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
-      - name: Build custom Jekyll site
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Build project website
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./docs
+          source: ./site
           destination: ./_site
+      - name: Add production app
+        run: |
+          mkdir -p _site/app
+          cp -R dist/. _site/app/
+          cp LICENSE _site/app/LICENSE
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
