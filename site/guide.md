@@ -5,21 +5,14 @@ intro: Bring the Bible you already read. Jot & Tittle keeps the record, one pass
 permalink: /guide/
 ---
 
-## Run your own journal
-
-Jot & Tittle is a browser app. To run it locally, install Node.js 22 or later, npm, and Python 3, then clone [the project]({{ site.repository_url }}) and run:
-
-```sh
-git clone {{ site.repository_url }}.git
-cd jot-and-tittle
-npm install
-npm run dev
-```
-
-Open the local address printed in your terminal. No account, API key, or Bible-text service is required. Development mode needs the local server running; offline support is available in production builds.
-
 {% if site.app_url != empty %}
-[Open the hosted app]({{ site.app_url }}) to get started without a local installation.
+## Try the app
+
+[Open Jot & Tittle]({{ site.app_url }}) in your browser. No installation or account is needed.
+
+Choose **Explore a sample map** to see how recorded passages appear across Scripture. The sample is read-only and separate from your own journals. Choose **Return to my readings** when you are ready to record your own reading.
+
+Your personal history starts empty. Keep your preferred Bible alongside the app; Jot & Tittle records your reading without bundling Scripture text.
 {% endif %}
 
 ## Record what you read
@@ -43,6 +36,19 @@ Export all your journals and readings from **Your data**, regardless of the filt
 Browser storage can be cleared or removed. Each browser and site address has its own history. A source-code download is a copy of the software; it does not back up your readings.
 
 [Read more about privacy and backups]({{ '/privacy/' | relative_url }}).
+
+## Run your own journal
+
+Jot & Tittle is a browser app. To run it locally, install Node.js 22 or later, npm, and Python 3, then clone [the project]({{ site.repository_url }}) and run:
+
+```sh
+git clone {{ site.repository_url }}.git
+cd jot-and-tittle
+npm install
+npm run dev
+```
+
+Open the local address printed in your terminal. No account, API key, or Bible-text service is required. Development mode needs the local server running; offline support is available in production builds.
 
 ## Build for offline use
 
