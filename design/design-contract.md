@@ -25,3 +25,7 @@ Three specialist subagents completed initial coverage reviews and multiple consi
 All 23 exports were decoded as PNG and visually inspected as a contact sheet, with selected detailed exports inspected during composition. Native file/page/board readback and named-version creation confirmed local persistence. Prototype links are authored navigation, not end-to-end application verification. Rendered responsive composition, actual fonts, keyboard/touch flows and persistence/recovery were checked in the running app; see [r2 implementation evidence](implementation-r2.md). Assistive-technology sessions, Firefox execution and user studies remain outstanding, as documented there. This is not an accessibility-conformance claim.
 
 R1 is historical: [previous contract](references/design-contract-r1.md), original SVG and earlier browser evidence remain preserved. Existing `verification.md` describes that earlier implementation only; it does not verify r2. Resolve reference discrepancies by updating guidelines, tokens, manifest and relevant Penpot exports together.
+
+## Information-design refinement
+
+The [approved punchlist](information-design-punchlist.md) and [review and verification](information-design-review.md) record the 2026-10-08 four-persona/ADHD copy review. Current information hierarchy and Verse list naming follow the corresponding section in the canonical visual guidelines. Existing r2 reference boards retain their IDs and historical wording; their copy predates this refinement. Map geometry, tokens, data and counting behavior are unchanged.

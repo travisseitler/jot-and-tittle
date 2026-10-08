@@ -1,0 +1,300 @@
+{
+  "appCommit": "c00436d",
+  "surface": "Local Vite dev app, headless Chromium, UTC, fixed 2026-10-05 12:00",
+  "receipts": [
+    {
+      "name": "first-use",
+      "width": 320,
+      "path": "design/evidence/information-design/first-use-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "about",
+      "width": 320,
+      "path": "design/evidence/information-design/about-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "capture",
+      "width": 320,
+      "path": "design/evidence/information-design/capture-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-map",
+      "width": 320,
+      "path": "design/evidence/information-design/sample-map-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "map-display",
+      "width": 320,
+      "path": "design/evidence/information-design/map-display-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "verse-list",
+      "width": 320,
+      "path": "design/evidence/information-design/verse-list-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-patterns",
+      "width": 320,
+      "path": "design/evidence/information-design/sample-patterns-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "data",
+      "width": 320,
+      "path": "design/evidence/information-design/data-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "personal-map",
+      "width": 320,
+      "path": "design/evidence/information-design/personal-map-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-map",
+      "width": 320,
+      "path": "design/evidence/information-design/filtered-map-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-history",
+      "width": 320,
+      "path": "design/evidence/information-design/filtered-history-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-patterns",
+      "width": 320,
+      "path": "design/evidence/information-design/filtered-patterns-320.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "first-use",
+      "width": 390,
+      "path": "design/evidence/information-design/first-use-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "about",
+      "width": 390,
+      "path": "design/evidence/information-design/about-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "capture",
+      "width": 390,
+      "path": "design/evidence/information-design/capture-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-map",
+      "width": 390,
+      "path": "design/evidence/information-design/sample-map-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "map-display",
+      "width": 390,
+      "path": "design/evidence/information-design/map-display-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "verse-list",
+      "width": 390,
+      "path": "design/evidence/information-design/verse-list-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-patterns",
+      "width": 390,
+      "path": "design/evidence/information-design/sample-patterns-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "data",
+      "width": 390,
+      "path": "design/evidence/information-design/data-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "personal-map",
+      "width": 390,
+      "path": "design/evidence/information-design/personal-map-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-map",
+      "width": 390,
+      "path": "design/evidence/information-design/filtered-map-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-history",
+      "width": 390,
+      "path": "design/evidence/information-design/filtered-history-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-patterns",
+      "width": 390,
+      "path": "design/evidence/information-design/filtered-patterns-390.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "first-use",
+      "width": 1440,
+      "path": "design/evidence/information-design/first-use-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "about",
+      "width": 1440,
+      "path": "design/evidence/information-design/about-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "capture",
+      "width": 1440,
+      "path": "design/evidence/information-design/capture-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-map",
+      "width": 1440,
+      "path": "design/evidence/information-design/sample-map-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "map-display",
+      "width": 1440,
+      "path": "design/evidence/information-design/map-display-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "verse-list",
+      "width": 1440,
+      "path": "design/evidence/information-design/verse-list-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "sample-patterns",
+      "width": 1440,
+      "path": "design/evidence/information-design/sample-patterns-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "data",
+      "width": 1440,
+      "path": "design/evidence/information-design/data-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "personal-map",
+      "width": 1440,
+      "path": "design/evidence/information-design/personal-map-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-map",
+      "width": 1440,
+      "path": "design/evidence/information-design/filtered-map-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-history",
+      "width": 1440,
+      "path": "design/evidence/information-design/filtered-history-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    },
+    {
+      "name": "filtered-patterns",
+      "width": 1440,
+      "path": "design/evidence/information-design/filtered-patterns-1440.png",
+      "visible": true,
+      "viewportOverflow": false
+    }
+  ],
+  "counterexamples": [
+    {
+      "width": 320,
+      "linkedCopies": {
+        "sessions": 2,
+        "verseCount": 1
+      },
+      "independentIdentical": {
+        "sessions": 3,
+        "verseCount": 2
+      },
+      "futureDate": "2027-01-01",
+      "neutralPixel": [229, 232, 224, 255]
+    },
+    {
+      "width": 390,
+      "linkedCopies": {
+        "sessions": 2,
+        "verseCount": 1
+      },
+      "independentIdentical": {
+        "sessions": 3,
+        "verseCount": 2
+      },
+      "futureDate": "2027-01-01",
+      "neutralPixel": [229, 232, 224, 255]
+    },
+    {
+      "width": 1440,
+      "linkedCopies": {
+        "sessions": 2,
+        "verseCount": 1
+      },
+      "independentIdentical": {
+        "sessions": 3,
+        "verseCount": 2
+      },
+      "futureDate": "2027-01-01",
+      "neutralPixel": [229, 232, 224, 255]
+    }
+  ],
+  "limits": "Bounds assertions cover 36 states. Representative PNGs visually inspected; not a user study, screen-reader session, physical-device or conformance certification. Full-page phone screenshots retain fixed navigation at the original viewport position."
+}
