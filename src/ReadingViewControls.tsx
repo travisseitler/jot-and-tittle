@@ -36,7 +36,7 @@ export function ReadingViewControls(props: Props) {
   function apply(view: View) {
     props.onApply(view);
     const names = props.sample
-      ? "Example data"
+      ? "Sample readings"
       : view.journalMode === "single"
         ? props.journals.find((j) => j.id === props.currentJournalId)?.name
         : view.journalMode === "all"
@@ -86,7 +86,7 @@ export function ReadingViewControls(props: Props) {
         <p>
           <strong>
             {props.sample
-              ? "Example data"
+              ? "Sample readings"
               : props.scopeIds
                   .map((id) => props.journals.find((j) => j.id === id)?.name)
                   .join(", ") || "No journals selected"}

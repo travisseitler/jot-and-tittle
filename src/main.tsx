@@ -1082,9 +1082,9 @@ function App() {
           <div>
             <span
               className="breadcrumb"
-              title={sample ? "Example data" : currentJournal.name}
+              title={sample ? "Sample readings" : currentJournal.name}
             >
-              {sample ? "Example data" : currentJournal.name}
+              {sample ? "Sample readings" : currentJournal.name}
             </span>
             <ChevronRight size={12} />
             <span>
@@ -1256,8 +1256,8 @@ function App() {
           {sample && (
             <div className="sample-banner">
               <span>
-                <Leaf size={16} /> Sample readings · your personal history stays
-                separate.
+                <Leaf size={16} /> Sample readings · separate from your
+                journals.
               </span>
               <button onClick={() => setSample(false)}>
                 Return to my readings <X size={14} />
@@ -1289,7 +1289,7 @@ function App() {
                         className="secondary"
                         onClick={() => setSample(true)}
                       >
-                        Explore sample data
+                        Explore sample readings
                       </button>
                     </div>
                   </div>
@@ -1717,7 +1717,7 @@ function App() {
                               <span>{formatDate(r.startedAt)}</span>
                               <small>
                                 {sample
-                                  ? "Example data"
+                                  ? "Sample readings"
                                   : journals.find((j) => j.id === r.journalId)
                                       ?.name}{" "}
                                 · {r.ranges.map(rangeLabel).join("; ")}
@@ -1764,7 +1764,7 @@ function App() {
                       reading={readingDetail}
                       journalName={
                         sample
-                          ? "Example data"
+                          ? "Sample readings"
                           : journals.find(
                               (j) => j.id === readingDetail.journalId,
                             )?.name || "Journal"
@@ -1808,7 +1808,7 @@ function App() {
                             </strong>
                             <span>
                               {sample
-                                ? "Example data"
+                                ? "Sample readings"
                                 : journals.find((j) => j.id === r.journalId)
                                     ?.name}
                             </span>
@@ -1838,7 +1838,7 @@ function App() {
                     </p>
                     {!active.length ? (
                       <button onClick={() => setSample(true)}>
-                        Explore sample data <ArrowUpRight size={14} />
+                        Explore sample readings <ArrowUpRight size={14} />
                       </button>
                     ) : (
                       <button onClick={() => setPage("insights")}>
@@ -1891,7 +1891,7 @@ function App() {
                   reading={readingDetail}
                   journalName={
                     sample
-                      ? "Example data"
+                      ? "Sample readings"
                       : journals.find((j) => j.id === readingDetail.journalId)
                           ?.name || "Journal"
                   }

@@ -101,7 +101,7 @@ export function HistoryView({
             <div className="history-passage">
               <span>
                 {sample
-                  ? "Example data"
+                  ? "Sample readings"
                   : journals.find((j) => j.id === r.journalId)?.name}
               </span>
               <button
