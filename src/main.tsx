@@ -3211,7 +3211,7 @@ function App() {
               faith, effort, or worth. No streaks or spiritual scores.
             </p>
             <p className="muted">
-              The name comes from Matthew 5:18. Version 0.3.0 · Open-source
+              The name comes from Matthew 5:18. Version 0.3.1 · Open-source
               local-first application. Scripture text is not bundled.
             </p>
           </div>
