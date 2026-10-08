@@ -10,6 +10,18 @@ history as a map of the Bible.
 Your readings stay in the browser on your device. There is no account to create,
 and no cloud synchronization to set up.
 
+## Try it in your browser
+
+**[Open Jot & Tittle](https://travisseitler.github.io/jot-and-tittle/app/)** — the
+hosted app is available now. You do not need to download anything or install
+software. Choose **Explore a sample map** to try it without adding sample readings
+to your personal history, or choose **Log a reading** to start your own journal.
+
+For an introduction and usage guide, visit
+[the project website](https://travisseitler.github.io/jot-and-tittle/).
+Your journals stay in your browser on your device, even when you use the hosted
+app. Make regular backups using **Your data → Export all journals**.
+
 ## What you can do
 
 - Record whole chapters, individual verses, or several passages in one reading.
@@ -27,23 +39,10 @@ The map covers the **66-book Protestant canon**, using **KJV verse numbering**
 You can read in your preferred translation; references that use different verse
 numbering may need adjustment to match the map.
 
-## Hosted website and demo
+## Optional: run your own copy
 
-Visit [the project website](https://travisseitler.github.io/jot-and-tittle/) or
-[open the app](https://travisseitler.github.io/jot-and-tittle/app/).
-The hosted app stores each visitor's journals in that visitor's browser, just
-like a local copy. **Explore a sample map** provides a demo without changing
-personal readings.
-
-The website source lives in `site/`. The Pages workflow builds the website and
-current app together on each push to `main`, publishing the app under `/app/`.
-See [the website README](site/README.md) for preview and publishing instructions.
-
-## Getting started
-
-If someone has given you a link to a running copy of Jot & Tittle, open that link
-in your browser. The setup below is only needed if you want to run your own copy
-on your computer.
+The hosted app above is ready to use. Follow the setup below only if you want to
+run your own copy on your computer.
 
 Running your own copy involves a one-time setup and two commands. You do not need
 to know how to write code. You will need an internet connection for the initial
@@ -202,6 +201,12 @@ file yourself. A backup includes all journals, reading dates, passages, and note
 including empty journals. Import adds new records and skips readings already
 present; it does not overwrite existing readings.
 
+To move from the hosted app to a local copy (or back again), export all journals
+in the copy you have been using. Open the other copy, go to **Your data**, choose
+**Choose a JSON file**, and import that backup. Check that your journals and
+readings appear there. The two copies keep separate histories after the transfer;
+later changes do not synchronize automatically.
+
 Each browser and web address keeps its own reading history. Changing from
 `localhost` to a hosted website, or even changing the port number in the address,
 opens a separate reading space. Browser data can also be cleared or removed by
@@ -292,6 +297,10 @@ and drag panning are not implemented.
 <summary>Technical reference: architecture, backup format, reading dates, and Undo</summary>
 
 ### Architecture
+
+The website source lives in `site/`. The Pages workflow builds the website and
+current app together on each push to `main`, publishing the app under `/app/`.
+See [the website README](site/README.md) for preview and publishing instructions.
 
 `src/domain.ts` contains Scripture identity, parser, normalized ranges, derived statistics, metric buckets, and interchange validation. Verse indices are zero-based internally; exported identities are OSIS strings. Canon and versification are data identities, not implicit row counts. `src/journals.ts` defines journal ownership, names, backwards-compatible interchange, and merge planning. `src/storage.ts` defines the repository boundary and IndexedDB schema version 3; migration creates Journal and assigns existing readings to it in the upgrade transaction. Journal, reading, and selected-journal changes are committed atomically. `src/Heatmap.tsx` uses a base canvas and separate hover overlay; coordinate hit testing is mathematical. `src/main.tsx` contains the application workflows. Metadata is `src/canon.json`; cell styling is independent of readings.
 
