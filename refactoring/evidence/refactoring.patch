@@ -1,0 +1,1009 @@
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -1,3 +1,5 @@
++import { HistoryView } from "./HistoryView";
++import { PatternsView } from "./PatternsView";
+ import { CaptureSurface, DetailSurface } from "./DetailSurface";
+ import { TextView } from "./TextView";
+ import { ReadingDetail } from "./ReadingDetail";
+@@ -27,9 +29,7 @@
+   Pencil,
+   Trash2,
+   Info,
+-  CalendarDays,
+   Leaf,
+-  Layers,
+   Clock3,
+ } from "lucide-react";
+ import {
+@@ -511,18 +511,7 @@
+   );
+   const viewed = stats.slice(scope.start, scope.end + 1),
+     covered = viewed.filter((s) => s.count).length,
+-    total = viewed.length,
+-    bookStats = useMemo(
+-      () =>
+-        books.map((b) => ({
+-          ...b,
+-          read: stats.slice(b.start, b.end + 1).filter((s) => s.count).length,
+-          visits: stats
+-            .slice(b.start, b.end + 1)
+-            .reduce((a, s) => a + s.count, 0),
+-        })),
+-      [stats],
+-    );
++    total = viewed.length;
+   const parsed = useMemo(() => {
+     try {
+       return { ranges: parsePassage(input), error: "" };
+@@ -1888,178 +1877,32 @@
+               className={`detail-layout ${readingDetail ? "has-detail" : ""}`}
+             >
+               <div className="detail-main">
+-                <section className="panel">
+-                  <div className="section-title">
+-                    <h2>{active.length} reading sessions</h2>
+-                    <span className="muted">
+-                      {historyQuery &&
+-                        `${sorted.filter((r) => (r.originalInput + " " + r.notes + " " + r.ranges.map(rangeLabel).join(" ") + " " + readingDate(r.startedAt) + " " + formatDate(r.startedAt)).toLowerCase().includes(historyQuery.toLowerCase())).length} search results`}
+-                    </span>
+-                    <div className="history-search">
+-                      <Search size={15} />
+-                      <input
+-                        aria-label="Search reading history"
+-                        value={historyQuery}
+-                        onChange={(e) => setHistoryQuery(e.target.value)}
+-                        placeholder="Search dates, passages or notes"
+-                      />
+-                    </div>
+-                  </div>
+-                  {sorted
+-                    .filter((r) =>
+-                      (
+-                        r.originalInput +
+-                        " " +
+-                        r.notes +
+-                        " " +
+-                        r.ranges.map(rangeLabel).join(" ") +
+-                        " " +
+-                        readingDate(r.startedAt) +
+-                        " " +
+-                        formatDate(r.startedAt)
+-                      )
+-                        .toLowerCase()
+-                        .includes(historyQuery.toLowerCase()),
+-                    )
+-                    .map((r, index, rows) => (
+-                      <React.Fragment key={r.id}>
+-                        {(index === 0 ||
+-                          readingDate(rows[index - 1].startedAt) !==
+-                            readingDate(r.startedAt)) && (
+-                          <h3 className="history-day-heading">
+-                            {formatDate(r.startedAt)}
+-                          </h3>
+-                        )}
+-                        <div className="history-row" key={r.id}>
+-                          <button
+-                            className="history-date"
+-                            onClick={() => inspectReading(r)}
+-                          >
+-                            <CalendarDays size={16} />
+-                            {formatDate(r.startedAt)}
+-                          </button>
+-                          <div className="history-passage">
+-                            <span>
+-                              {sample
+-                                ? "Example data"
+-                                : journals.find((j) => j.id === r.journalId)
+-                                    ?.name}
+-                            </span>
+-                            <button
+-                              className="reading-title"
+-                              onClick={() => inspectReading(r)}
+-                            >
+-                              {r.ranges.map(rangeLabel).join("; ")}
+-                            </button>
+-                            <small>
+-                              {pretty(rangeCount(r.ranges))} unique verses
+-                              {r.notes && ` · ${r.notes}`}
+-                            </small>
+-                          </div>
+-                          {!sample &&
+-                            !readOnly &&
+-                            !journals.find((j) => j.id === r.journalId)
+-                              ?.archived && (
+-                              <details className="reading-actions">
+-                                <summary>More actions</summary>
+-                                <button
+-                                  className="icon-btn"
+-                                  disabled={
+-                                    sample ||
+-                                    readOnly ||
+-                                    !!journals.find((j) => j.id === r.journalId)
+-                                      ?.archived
+-                                  }
+-                                  aria-label={`Move ${r.originalInput}`}
+-                                  onClick={() => {
+-                                    setTransferMode("move");
+-                                    setTransfer(r);
+-                                    setDestination("");
+-                                    setTransferError("");
+-                                  }}
+-                                >
+-                                  <ArrowRight size={16} /> Move
+-                                </button>
+-                                <button
+-                                  className="icon-btn"
+-                                  disabled={
+-                                    sample ||
+-                                    readOnly ||
+-                                    !!journals.find((j) => j.id === r.journalId)
+-                                      ?.archived
+-                                  }
+-                                  aria-label={`Copy ${r.originalInput}`}
+-                                  onClick={() => {
+-                                    setTransferMode("copy");
+-                                    setCopyId(crypto.randomUUID());
+-                                    setTransfer(r);
+-                                    setDestination("");
+-                                    setTransferError("");
+-                                  }}
+-                                >
+-                                  <Layers size={16} /> Copy
+-                                </button>
+-
+-                                <button
+-                                  className="icon-btn"
+-                                  disabled={
+-                                    sample ||
+-                                    readOnly ||
+-                                    !!journals.find((j) => j.id === r.journalId)
+-                                      ?.archived
+-                                  }
+-                                  aria-label={`Delete ${r.originalInput}`}
+-                                  onClick={() => setConfirmDelete(r)}
+-                                >
+-                                  <Trash2 size={16} /> Delete
+-                                </button>
+-                              </details>
+-                            )}
+-                        </div>
+-                      </React.Fragment>
+-                    ))}
+-                  {!sorted.length && (
+-                    <div className="large-empty">
+-                      <BookOpen size={32} />
+-                      <h3>
+-                        {readings.length || sample
+-                          ? "No readings in this view."
+-                          : "A reading history starts with one passage."}
+-                      </h3>
+-                      <p>
+-                        {readings.length || sample
+-                          ? "Change View readings or Reset view to see more of your history."
+-                          : "Log a chapter, a few verses, or several passages together."}
+-                      </p>
+-                      <button className="primary" onClick={() => openLog()}>
+-                        <Plus size={16} /> Log a reading
+-                      </button>
+-                    </div>
+-                  )}
+-                  {sorted.length > 0 &&
+-                    !sorted.some((r) =>
+-                      (
+-                        r.originalInput +
+-                        " " +
+-                        r.notes +
+-                        " " +
+-                        r.ranges.map(rangeLabel).join(" ") +
+-                        " " +
+-                        readingDate(r.startedAt) +
+-                        " " +
+-                        formatDate(r.startedAt)
+-                      )
+-                        .toLowerCase()
+-                        .includes(historyQuery.toLowerCase()),
+-                    ) && (
+-                      <p className="muted">
+-                        No readings match your search.{" "}
+-                        <button onClick={() => setHistoryQuery("")}>
+-                          Clear search
+-                        </button>
+-                      </p>
+-                    )}
+-                </section>
++                <HistoryView
++                  sorted={sorted}
++                  sessionCount={active.length}
++                  hasReadings={!!readings.length}
++                  sample={sample}
++                  readOnly={readOnly}
++                  journals={journals}
++                  query={historyQuery}
++                  onQueryChange={setHistoryQuery}
++                  onInspectReading={inspectReading}
++                  onMoveReading={(r) => {
++                    setTransferMode("move");
++                    setTransfer(r);
++                    setDestination("");
++                    setTransferError("");
++                  }}
++                  onCopyReading={(r) => {
++                    setTransferMode("copy");
++                    setCopyId(crypto.randomUUID());
++                    setTransfer(r);
++                    setDestination("");
++                    setTransferError("");
++                  }}
++                  onDeleteReading={setConfirmDelete}
++                  onLogReading={() => openLog()}
++                />
+               </div>{" "}
+               {readingDetail && (
+                 <ReadingDetail
+@@ -2092,123 +1935,26 @@
+             </div>
+           )}
+           {page === "insights" && (
+-            <>
+-              <section className="pattern-overview">
+-                <h2>Where does your reading take you?</h2>
+-                <p>
+-                  {active.length
+-                    ? `You’ve recorded ${active.length} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
+-                    : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
+-                </p>
+-              </section>
+-              <p className="counting-rule">
+-                {!archivedViewId && journalScopeMode !== "single" && !sample
+-                  ? "Frequencies deduplicate shared encounters; session totals count reading records."
+-                  : "Frequencies count reading records in this journal."}{" "}
+-                Map geography does not limit Patterns.
+-              </p>
+-              <section className="stats-row">
+-                <div className="stat">
+-                  <div>UNIQUE VERSES</div>
+-                  <strong>{pretty(stats.filter((s) => s.count).length)}</strong>
+-                  <span>Verses with at least one recorded reading</span>
+-                </div>
+-                <div className="stat">
+-                  <div>REVISITED VERSES</div>
+-                  <strong>
+-                    {pretty(stats.filter((s) => s.count > 1).length)}
+-                  </strong>
+-                  <span>Verses with frequency greater than one</span>
+-                </div>
+-                <div className="stat">
+-                  <div>VERSE READINGS</div>
+-                  <strong>
+-                    {pretty(stats.reduce((a, s) => a + s.count, 0))}
+-                  </strong>
+-                  <span>Sum of verse frequencies in this evidence view</span>
+-                </div>
+-              </section>
+-              <section className="panel">
+-                <div className="section-title">
+-                  <h2>Where have you been reading?</h2>
+-                  <span className="muted">
+-                    Unique verses recorded · canonical order
+-                  </span>
+-                </div>
+-                <details className="book-breakdown">
+-                  <summary>Explore all 66 books</summary>
+-                  <div className="book-grid">
+-                    {bookStats.map((b) => (
+-                      <button
+-                        className="book-stat"
+-                        key={b.index}
+-                        onClick={() => {
+-                          setBook(String(b.index));
+-                          setChapter("all");
+-                          setScopeRange(null);
+-                          setPage("map");
+-                        }}
+-                      >
+-                        <div>
+-                          <strong>{b.name}</strong>
+-                          <span>
+-                            {b.read
+-                              ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
+-                              : "0%"}
+-                          </span>
+-                        </div>
+-                        <div className="progress">
+-                          <i
+-                            style={{
+-                              width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
+-                            }}
+-                          />
+-                        </div>
+-                        <small>
+-                          {pretty(b.read)} of {pretty(b.end - b.start + 1)}{" "}
+-                          verses
+-                        </small>
+-                      </button>
+-                    ))}
+-                  </div>
+-                </details>
+-              </section>
+-              <section className="panel return-panel">
+-                <h2>Places you return to</h2>
+-                <p className="muted">
+-                  The ten most frequently recorded verses. Ties follow canonical
+-                  order.
+-                </p>
+-                {stats
+-                  .map((s, i) => ({ ...s, i }))
+-                  .filter((s) => s.count > 1)
+-                  .sort((a, b) => b.count - a.count || a.i - b.i)
+-                  .slice(0, 10)
+-                  .map((s) => (
+-                    <button
+-                      className="return-row"
+-                      key={s.i}
+-                      onClick={() => {
+-                        setScopeRange(null);
+-                        setBook("all");
+-                        setChapter("all");
+-                        setPage("map");
+-                        inspectVerse(s.i);
+-                      }}
+-                    >
+-                      <span>{reference(s.i)}</span>
+-                      <span>
+-                        {s.count} readings <ChevronRight size={14} />
+-                      </span>
+-                    </button>
+-                  ))}
+-                {!stats.some((s) => s.count > 1) && (
+-                  <p className="muted">
+-                    Repeated readings will appear here as your history grows.
+-                  </p>
+-                )}
+-              </section>
+-            </>
++            <PatternsView
++              stats={stats}
++              sessionCount={active.length}
++              deduplicatesEncounters={
++                !archivedViewId && journalScopeMode !== "single" && !sample
++              }
++              onExploreBook={(bookIndex) => {
++                setBook(String(bookIndex));
++                setChapter("all");
++                setScopeRange(null);
++                setPage("map");
++              }}
++              onInspectVerse={(verseId) => {
++                setScopeRange(null);
++                setBook("all");
++                setChapter("all");
++                setPage("map");
++                inspectVerse(verseId);
++              }}
++            />
+           )}
+           {page === "data" && (
+             <>
+--- a/src/TextView.tsx
++++ b/src/TextView.tsx
+@@ -8,6 +8,13 @@
+   type Stats,
+ } from "./domain";
+ import type { Journal, JournalReading } from "./journals";
++import {
++  passageVerseIds,
++  passagesInScope,
++  passagesOutsideScope,
++  textPage,
++  textPageDestination,
++} from "./textViewModel";
+ import "./map-design.css";
+ 
+ export type TextViewProps = {
+@@ -44,15 +51,12 @@
+     [searched, setSearched] = useState(false),
+     [status, setStatus] = useState("");
+   const errorId = useId(),
+-    pageSize = phone ? 4 : 12,
+-    total = scope.end - scope.start + 1;
+-  const page = Math.floor(
+-    (Math.max(scope.start, Math.min(scope.end, anchor)) - scope.start) /
+-      pageSize,
++    pageSize = phone ? 4 : 12;
++  const { page, total, start, end, lastPage } = textPage(
++    scope,
++    anchor,
++    pageSize,
+   );
+-  const start = scope.start + page * pageSize,
+-    end = Math.min(scope.end, start + pageSize - 1),
+-    lastPage = Math.ceil(total / pageSize) - 1;
+   useEffect(() => {
+     const media = window.matchMedia("(max-width: 767px)");
+     const update = () => setPhone(media.matches);
+@@ -68,30 +72,11 @@
+     setMatchIndex(0);
+   }, [scope.start, scope.end]);
+   const clipped = useMemo(
+-    () =>
+-      found
+-        .map((r) => ({
+-          start: Math.max(r.start, scope.start),
+-          end: Math.min(r.end, scope.end),
+-        }))
+-        .filter((r) => r.start <= r.end),
++    () => passagesInScope(found, scope),
+     [found, scope.start, scope.end],
+   );
+-  const matches = useMemo(
+-    () =>
+-      clipped.flatMap((r) =>
+-        Array.from({ length: r.end - r.start + 1 }, (_, i) => r.start + i),
+-      ),
+-    [clipped],
+-  );
+-  const omitted = found.flatMap((r) => {
+-    const parts: Range[] = [];
+-    if (r.start < scope.start)
+-      parts.push({ start: r.start, end: Math.min(r.end, scope.start - 1) });
+-    if (r.end > scope.end)
+-      parts.push({ start: Math.max(r.start, scope.end + 1), end: r.end });
+-    return parts;
+-  });
++  const matches = useMemo(() => passageVerseIds(clipped), [clipped]);
++  const omitted = passagesOutsideScope(found, scope);
+   const selected = matches[matchIndex];
+   const records = (id: number) =>
+     readings.filter((r) => r.ranges.some((q) => id >= q.start && id <= q.end));
+@@ -114,8 +99,12 @@
+     );
+   }
+   function pageTo(value: number) {
+-    const bounded = Math.max(0, Math.min(lastPage, value));
+-    setAnchor(scope.start + bounded * pageSize);
++    const { anchor: nextAnchor, page: bounded } = textPageDestination(
++      scope,
++      value,
++      pageSize,
++    );
++    setAnchor(nextAnchor);
+     setStatus(
+       `Showing verses ${bounded * pageSize + 1}–${Math.min(total, (bounded + 1) * pageSize)} of ${total}.`,
+     );
+@@ -128,9 +117,7 @@
+       setSearched(true);
+       setError("");
+       setMatchIndex(0);
+-      const first = ranges
+-        .map((r) => Math.max(r.start, scope.start))
+-        .find((id, i) => id <= Math.min(ranges[i].end, scope.end));
++      const first = passagesInScope(ranges, scope)[0]?.start;
+       if (first !== undefined) {
+         setAnchor(first);
+         setStatus(
+@@ -141,7 +128,7 @@
+       setError((e as Error).message);
+     }
+   }
+-  const ids = Array.from({ length: end - start + 1 }, (_, i) => start + i);
++  const ids = passageVerseIds([{ start, end }]);
+   function noteAccess(id: number) {
+     const noted = records(id).filter((r) => r.notes.trim());
+     return (
+--- /dev/null
++++ b/src/textViewModel.ts
+@@ -0,0 +1,57 @@
++import type { Range } from "./domain";
++
++/** Inclusive verse bounds for the page containing an anchor in the current scope. */
++export function textPage(scope: Range, anchor: number, pageSize: number) {
++  const total = scope.end - scope.start + 1;
++  const page = Math.floor(
++    (Math.max(scope.start, Math.min(scope.end, anchor)) - scope.start) /
++      pageSize,
++  );
++  const start = scope.start + page * pageSize;
++  return {
++    total,
++    page,
++    start,
++    end: Math.min(scope.end, start + pageSize - 1),
++    lastPage: Math.ceil(total / pageSize) - 1,
++  };
++}
++
++/** Resolve a pager request to the first verse of a bounded page. */
++export function textPageDestination(
++  scope: Range,
++  page: number,
++  pageSize: number,
++) {
++  const lastPage = Math.ceil((scope.end - scope.start + 1) / pageSize) - 1;
++  const bounded = Math.max(0, Math.min(lastPage, page));
++  return { page: bounded, anchor: scope.start + bounded * pageSize };
++}
++
++/** Keep intersections in request order, including repeated requested verses. */
++export function passagesInScope(ranges: Range[], scope: Range): Range[] {
++  return ranges
++    .map((r) => ({
++      start: Math.max(r.start, scope.start),
++      end: Math.min(r.end, scope.end),
++    }))
++    .filter((r) => r.start <= r.end);
++}
++
++/** Keep the before/after pieces of each request as separate continuous passages. */
++export function passagesOutsideScope(ranges: Range[], scope: Range): Range[] {
++  return ranges.flatMap((r) => {
++    const parts: Range[] = [];
++    if (r.start < scope.start)
++      parts.push({ start: r.start, end: Math.min(r.end, scope.start - 1) });
++    if (r.end > scope.end)
++      parts.push({ start: Math.max(r.start, scope.end + 1), end: r.end });
++    return parts;
++  });
++}
++
++export function passageVerseIds(ranges: Range[]): number[] {
++  return ranges.flatMap((r) =>
++    Array.from({ length: r.end - r.start + 1 }, (_, i) => r.start + i),
++  );
++}
+--- /dev/null
++++ b/src/HistoryView.tsx
+@@ -0,0 +1,191 @@
++import React from "react";
++import {
++  Search,
++  CalendarDays,
++  ArrowRight,
++  Layers,
++  Trash2,
++  BookOpen,
++  Plus,
++} from "lucide-react";
++import {
++  readingDate,
++  formatReadingDate as formatDate,
++  rangeLabel,
++  rangeCount,
++} from "./domain";
++import type { Journal, JournalReading as Reading } from "./journals";
++
++const pretty = (n: number) => n.toLocaleString();
++
++function matchesHistoryQuery(reading: Reading, query: string) {
++  return (
++    reading.originalInput +
++    " " +
++    reading.notes +
++    " " +
++    reading.ranges.map(rangeLabel).join(" ") +
++    " " +
++    readingDate(reading.startedAt) +
++    " " +
++    formatDate(reading.startedAt)
++  )
++    .toLowerCase()
++    .includes(query.toLowerCase());
++}
++
++export function HistoryView({
++  sorted,
++  sessionCount,
++  hasReadings,
++  sample,
++  readOnly,
++  journals,
++  query,
++  onQueryChange,
++  onInspectReading,
++  onMoveReading,
++  onCopyReading,
++  onDeleteReading,
++  onLogReading,
++}: {
++  sorted: Reading[];
++  sessionCount: number;
++  hasReadings: boolean;
++  sample: boolean;
++  readOnly: boolean;
++  journals: Journal[];
++  query: string;
++  onQueryChange: (query: string) => void;
++  onInspectReading: (reading: Reading) => void;
++  onMoveReading: (reading: Reading) => void;
++  onCopyReading: (reading: Reading) => void;
++  onDeleteReading: (reading: Reading) => void;
++  onLogReading: () => void;
++}) {
++  const matchingReadings = sorted.filter((reading) =>
++    matchesHistoryQuery(reading, query),
++  );
++  return (
++    <section className="panel">
++      <div className="section-title">
++        <h2>{sessionCount} reading sessions</h2>
++        <span className="muted">
++          {query && `${matchingReadings.length} search results`}
++        </span>
++        <div className="history-search">
++          <Search size={15} />
++          <input
++            aria-label="Search reading history"
++            value={query}
++            onChange={(e) => onQueryChange(e.target.value)}
++            placeholder="Search dates, passages or notes"
++          />
++        </div>
++      </div>
++      {matchingReadings.map((r, index, rows) => (
++        <React.Fragment key={r.id}>
++          {(index === 0 ||
++            readingDate(rows[index - 1].startedAt) !==
++              readingDate(r.startedAt)) && (
++            <h3 className="history-day-heading">{formatDate(r.startedAt)}</h3>
++          )}
++          <div className="history-row" key={r.id}>
++            <button
++              className="history-date"
++              onClick={() => onInspectReading(r)}
++            >
++              <CalendarDays size={16} />
++              {formatDate(r.startedAt)}
++            </button>
++            <div className="history-passage">
++              <span>
++                {sample
++                  ? "Example data"
++                  : journals.find((j) => j.id === r.journalId)?.name}
++              </span>
++              <button
++                className="reading-title"
++                onClick={() => onInspectReading(r)}
++              >
++                {r.ranges.map(rangeLabel).join("; ")}
++              </button>
++              <small>
++                {pretty(rangeCount(r.ranges))} unique verses
++                {r.notes && ` · ${r.notes}`}
++              </small>
++            </div>
++            {!sample &&
++              !readOnly &&
++              !journals.find((j) => j.id === r.journalId)?.archived && (
++                <details className="reading-actions">
++                  <summary>More actions</summary>
++                  <button
++                    className="icon-btn"
++                    disabled={
++                      sample ||
++                      readOnly ||
++                      !!journals.find((j) => j.id === r.journalId)?.archived
++                    }
++                    aria-label={`Move ${r.originalInput}`}
++                    onClick={() => onMoveReading(r)}
++                  >
++                    <ArrowRight size={16} /> Move
++                  </button>
++                  <button
++                    className="icon-btn"
++                    disabled={
++                      sample ||
++                      readOnly ||
++                      !!journals.find((j) => j.id === r.journalId)?.archived
++                    }
++                    aria-label={`Copy ${r.originalInput}`}
++                    onClick={() => onCopyReading(r)}
++                  >
++                    <Layers size={16} /> Copy
++                  </button>
++
++                  <button
++                    className="icon-btn"
++                    disabled={
++                      sample ||
++                      readOnly ||
++                      !!journals.find((j) => j.id === r.journalId)?.archived
++                    }
++                    aria-label={`Delete ${r.originalInput}`}
++                    onClick={() => onDeleteReading(r)}
++                  >
++                    <Trash2 size={16} /> Delete
++                  </button>
++                </details>
++              )}
++          </div>
++        </React.Fragment>
++      ))}
++      {!sorted.length && (
++        <div className="large-empty">
++          <BookOpen size={32} />
++          <h3>
++            {hasReadings || sample
++              ? "No readings in this view."
++              : "A reading history starts with one passage."}
++          </h3>
++          <p>
++            {hasReadings || sample
++              ? "Change View readings or Reset view to see more of your history."
++              : "Log a chapter, a few verses, or several passages together."}
++          </p>
++          <button className="primary" onClick={() => onLogReading()}>
++            <Plus size={16} /> Log a reading
++          </button>
++        </div>
++      )}
++      {sorted.length > 0 && matchingReadings.length === 0 && (
++        <p className="muted">
++          No readings match your search.{" "}
++          <button onClick={() => onQueryChange("")}>Clear search</button>
++        </p>
++      )}
++    </section>
++  );
++}
+--- /dev/null
++++ b/src/PatternsView.tsx
+@@ -0,0 +1,133 @@
++import { useMemo } from "react";
++import { ChevronRight } from "lucide-react";
++import { books, reference, type Stats } from "./domain";
++
++const pretty = (n: number) => n.toLocaleString();
++
++export function PatternsView({
++  stats,
++  sessionCount,
++  deduplicatesEncounters,
++  onExploreBook,
++  onInspectVerse,
++}: {
++  stats: Stats[];
++  sessionCount: number;
++  deduplicatesEncounters: boolean;
++  onExploreBook: (bookIndex: number) => void;
++  onInspectVerse: (verseId: number) => void;
++}) {
++  const bookStats = useMemo(
++    () =>
++      books.map((b) => ({
++        ...b,
++        read: stats.slice(b.start, b.end + 1).filter((s) => s.count).length,
++        visits: stats
++          .slice(b.start, b.end + 1)
++          .reduce((a, s) => a + s.count, 0),
++      })),
++    [stats],
++  );
++  return (
++    <>
++      <section className="pattern-overview">
++        <h2>Where does your reading take you?</h2>
++        <p>
++          {sessionCount
++            ? `You’ve recorded ${sessionCount} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
++            : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
++        </p>
++      </section>
++      <p className="counting-rule">
++        {deduplicatesEncounters
++          ? "Frequencies deduplicate shared encounters; session totals count reading records."
++          : "Frequencies count reading records in this journal."}{" "}
++        Map geography does not limit Patterns.
++      </p>
++      <section className="stats-row">
++        <div className="stat">
++          <div>UNIQUE VERSES</div>
++          <strong>{pretty(stats.filter((s) => s.count).length)}</strong>
++          <span>Verses with at least one recorded reading</span>
++        </div>
++        <div className="stat">
++          <div>REVISITED VERSES</div>
++          <strong>{pretty(stats.filter((s) => s.count > 1).length)}</strong>
++          <span>Verses with frequency greater than one</span>
++        </div>
++        <div className="stat">
++          <div>VERSE READINGS</div>
++          <strong>{pretty(stats.reduce((a, s) => a + s.count, 0))}</strong>
++          <span>Sum of verse frequencies in this evidence view</span>
++        </div>
++      </section>
++      <section className="panel">
++        <div className="section-title">
++          <h2>Where have you been reading?</h2>
++          <span className="muted">
++            Unique verses recorded · canonical order
++          </span>
++        </div>
++        <details className="book-breakdown">
++          <summary>Explore all 66 books</summary>
++          <div className="book-grid">
++            {bookStats.map((b) => (
++              <button
++                className="book-stat"
++                key={b.index}
++                onClick={() => onExploreBook(b.index)}
++              >
++                <div>
++                  <strong>{b.name}</strong>
++                  <span>
++                    {b.read
++                      ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
++                      : "0%"}
++                  </span>
++                </div>
++                <div className="progress">
++                  <i
++                    style={{
++                      width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
++                    }}
++                  />
++                </div>
++                <small>
++                  {pretty(b.read)} of {pretty(b.end - b.start + 1)} verses
++                </small>
++              </button>
++            ))}
++          </div>
++        </details>
++      </section>
++      <section className="panel return-panel">
++        <h2>Places you return to</h2>
++        <p className="muted">
++          The ten most frequently recorded verses. Ties follow canonical order.
++        </p>
++        {stats
++          .map((s, i) => ({ ...s, i }))
++          .filter((s) => s.count > 1)
++          .sort((a, b) => b.count - a.count || a.i - b.i)
++          .slice(0, 10)
++          .map((s) => (
++            <button
++              className="return-row"
++              key={s.i}
++              onClick={() => onInspectVerse(s.i)}
++            >
++              <span>{reference(s.i)}</span>
++              <span>
++                {s.count} readings <ChevronRight size={14} />
++              </span>
++            </button>
++          ))}
++        {!stats.some((s) => s.count > 1) && (
++          <p className="muted">
++            Repeated readings will appear here as your history grows.
++          </p>
++        )}
++      </section>
++    </>
++  );
++}
+--- /dev/null
++++ b/src/textViewModel.test.ts
+@@ -0,0 +1,123 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import {
++  passageVerseIds,
++  passagesInScope,
++  passagesOutsideScope,
++  textPage,
++  textPageDestination,
++} from "./textViewModel";
++
++const scope = { start: 100, end: 124 };
++
++test("page anchors stay in scope and retain inclusive partial tail pages", () => {
++  assert.deepEqual(textPage(scope, 99, 12), {
++    total: 25,
++    page: 0,
++    start: 100,
++    end: 111,
++    lastPage: 2,
++  });
++  assert.equal(textPage(scope, 111, 12).page, 0);
++  assert.deepEqual(textPage(scope, 112, 12), {
++    total: 25,
++    page: 1,
++    start: 112,
++    end: 123,
++    lastPage: 2,
++  });
++  assert.deepEqual(textPage(scope, 125, 12), {
++    total: 25,
++    page: 2,
++    start: 124,
++    end: 124,
++    lastPage: 2,
++  });
++  assert.deepEqual(passageVerseIds([{ start: 124, end: 124 }]), [124]);
++});
++
++test("responsive pages retain the anchored verse while changing page bounds", () => {
++  assert.deepEqual(textPage(scope, 117, 4), {
++    total: 25,
++    page: 4,
++    start: 116,
++    end: 119,
++    lastPage: 6,
++  });
++  assert.equal(textPage(scope, 117, 12).start, 112);
++  assert.deepEqual(textPageDestination(scope, -1, 4), {
++    page: 0,
++    anchor: 100,
++  });
++  assert.deepEqual(textPageDestination(scope, 99, 4), {
++    page: 6,
++    anchor: 124,
++  });
++  assert.deepEqual(textPageDestination(scope, 1, 12), {
++    page: 1,
++    anchor: 112,
++  });
++  assert.equal(textPage({ start: 9, end: 9 }, 0, 12).lastPage, 0);
++});
++
++test("Find keeps disjoint matches and duplicates in request order", () => {
++  const requested = [
++    { start: 122, end: 125 },
++    { start: 99, end: 101 },
++    { start: 110, end: 110 },
++    { start: 110, end: 110 },
++  ];
++  const before = structuredClone(requested);
++  const matched = passagesInScope(requested, scope);
++  assert.deepEqual(matched, [
++    { start: 122, end: 124 },
++    { start: 100, end: 101 },
++    { start: 110, end: 110 },
++    { start: 110, end: 110 },
++  ]);
++  assert.deepEqual(
++    passageVerseIds(matched),
++    [122, 123, 124, 100, 101, 110, 110],
++  );
++  assert.equal(matched[0].start, 122);
++  assert.deepEqual(passagesOutsideScope(requested, scope), [
++    { start: 125, end: 125 },
++    { start: 99, end: 99 },
++  ]);
++  assert.deepEqual(requested, before);
++});
++
++test("partial and wholly outside requests preserve distinct continuous omissions", () => {
++  const requested = [
++    { start: 90, end: 130 },
++    { start: 80, end: 85 },
++    { start: 140, end: 145 },
++  ];
++  assert.deepEqual(passagesInScope(requested, scope), [scope]);
++  assert.deepEqual(passagesOutsideScope(requested, scope), [
++    { start: 90, end: 99 },
++    { start: 125, end: 130 },
++    { start: 80, end: 85 },
++    { start: 140, end: 145 },
++  ]);
++  assert.deepEqual(passagesInScope(requested.slice(1), scope), []);
++  assert.equal(passagesInScope(requested.slice(1), scope)[0]?.start, undefined);
++});
++
++test("scope endpoints are matches while adjacent verses are omissions", () => {
++  const requested = [
++    { start: 99, end: 100 },
++    { start: 124, end: 125 },
++  ];
++  assert.deepEqual(
++    passageVerseIds(passagesInScope(requested, scope)),
++    [100, 124],
++  );
++  assert.deepEqual(passagesOutsideScope(requested, scope), [
++    { start: 99, end: 99 },
++    { start: 125, end: 125 },
++  ]);
++  assert.deepEqual(passagesInScope([], scope), []);
++  assert.deepEqual(passagesOutsideScope([], scope), []);
++  assert.deepEqual(passageVerseIds([]), []);
++});

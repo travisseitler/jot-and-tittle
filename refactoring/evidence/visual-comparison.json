@@ -1,0 +1,59 @@
+{
+  "comparedAgainst": "design/evidence/r2 (pre-refactor r2 browser evidence)",
+  "identical": [
+    "history-1440.png",
+    "capture-1440.png",
+    "reading-detail-1440.png",
+    "patterns-1440.png",
+    "first-use-1440.png",
+    "data-1440.png",
+    "passage-detail-1440.png",
+    "map-1440.png",
+    "patterns-390.png",
+    "map-390.png",
+    "passage-detail-390.png",
+    "capture-390.png",
+    "data-390.png",
+    "history-390.png",
+    "first-use-390.png",
+    "reading-detail-390.png",
+    "detail-boundary-1248.png",
+    "detail-boundary-767.png",
+    "detail-boundary-1023.png",
+    "detail-boundary-1024.png",
+    "detail-boundary-768.png",
+    "detail-boundary-1247.png",
+    "patterns-768.png",
+    "capture-768.png",
+    "passage-detail-768.png",
+    "map-768.png",
+    "data-768.png",
+    "history-768.png",
+    "reading-detail-768.png",
+    "first-use-768.png",
+    "passage-detail-320.png",
+    "map-320.png",
+    "patterns-320.png",
+    "first-use-320.png",
+    "data-320.png"
+  ],
+  "different": [
+    {
+      "name": "capture-320.png",
+      "before": [320, 1077],
+      "after": [320, 1077]
+    },
+    {
+      "name": "reading-detail-320.png",
+      "before": [320, 1889],
+      "after": [320, 1889]
+    },
+    {
+      "name": "history-320.png",
+      "before": [320, 1625],
+      "after": [320, 1625]
+    }
+  ],
+  "missingBaseline": [],
+  "inspection": "All 38 images retain matching dimensions. The three non-identical 320px captures differ in 15, 4 and 2 isolated rasterized pixels respectively; paired crops were visually inspected and showed no layout or copy change."
+}

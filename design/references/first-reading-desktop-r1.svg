@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000">
+<title>Jot &amp; Tittle first reading desktop — implementation reference revision 1</title>
+<defs><pattern id="grid" width="17" height="17" patternUnits="userSpaceOnUse"><rect width="14" height="14" rx="2" fill="#e3e7df"/></pattern></defs>
+<rect width="1440" height="1000" fill="#f7f5ef"/>
+<rect width="228" height="1000" fill="#eef0e7"/>
+<path d="M228 0V1000M228 76H1440" stroke="#dce1d5"/>
+<g font-family="Arial,sans-serif" font-size="14" fill="#5e6a5b">
+<text x="28" y="67" font-family="Georgia,serif" font-size="26" fill="#29392e">jot &amp; tittle</text>
+<text x="28" y="89" font-size="10" letter-spacing="1">A MAP OF YOUR READING</text>
+<rect x="20" y="133" width="188" height="74" rx="9" fill="#fffef9" stroke="#dce1d5"/>
+<text x="34" y="157" font-size="11">YOUR JOURNAL</text><text x="34" y="184">Journal</text>
+<rect x="20" y="260" width="188" height="48" rx="7" fill="#e0e9da"/>
+<text x="42" y="290" fill="#365640" font-weight="bold">Verse map</text><text x="42" y="340">Reading history</text><text x="42" y="390">Reading patterns</text><text x="42" y="440">Your data</text>
+<text x="272" y="46">Journal  ›  Verse map</text>
+<rect x="1232" y="17" width="164" height="44" rx="7" fill="#365640"/><text x="1250" y="45" fill="#fff">+ Log a reading</text>
+<text x="272" y="125" font-size="11" letter-spacing="2">THE BIG PICTURE</text>
+<text x="272" y="183" font-size="44" font-family="Georgia,serif" fill="#29392e">See where you’ve been.</text>
+<text x="272" y="221" font-size="16">Every square is a verse. Together, they tell the story of your reading.</text>
+<rect x="272" y="268" width="1124" height="425" rx="12" fill="#fffef9" stroke="#dce1d5"/>
+<text x="312" y="317" font-size="11" letter-spacing="2">YOUR FIRST MARK</text>
+<text x="312" y="367" font-family="Georgia,serif" font-size="32" fill="#29392e">Begin with a passage</text><text x="312" y="405" font-family="Georgia,serif" font-size="32" fill="#29392e">you’ve read.</text>
+<text x="312" y="448" font-size="16">A chapter, a few verses, or several passages.</text><text x="312" y="474" font-size="16">Your map grows with your reading.</text>
+<rect x="312" y="509" width="248" height="48" rx="7" fill="#365640"/><text x="335" y="539" fill="#fff">Record your first reading  →</text>
+<rect x="312" y="569" width="248" height="46" rx="7" fill="#f7f5ef" stroke="#dce1d5"/><text x="337" y="598">Explore a sample map</text>
+<rect x="830" y="308" width="526" height="276" rx="8" fill="url(#grid)"/><rect x="847" y="376" width="289" height="14" rx="2" fill="#72a87e"/><rect x="1085" y="461" width="238" height="14" rx="2" fill="#adbe8a"/>
+<text x="847" y="615">A little reading, a growing map</text><text x="847" y="638" font-size="12">Illustrative demo · Pause</text>
+<text x="272" y="735">Saved in this browser. Export a backup from Your data to keep another copy.</text>
+<text x="272" y="782" fill="#365640">Explore my empty map →</text>
+</g></svg>

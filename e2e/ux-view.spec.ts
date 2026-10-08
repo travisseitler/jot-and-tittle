@@ -69,7 +69,7 @@ test("recording into another journal preserves view and offers a way to find the
   await page
     .getByRole("button", { name: "Show this reading", exact: true })
     .click();
-  await expect(page.getByRole("img", { name: /verse map/ })).toHaveAttribute(
+  await expect(page.getByRole("group", { name: /verse map,/ })).toHaveAttribute(
     "aria-label",
     /1 verses/,
   );
@@ -84,7 +84,7 @@ test("sample context remains consistent and avoids personal editing controls", a
 }, testInfo) => {
   await open(page);
   await page
-    .getByRole("button", { name: "Explore a sample map", exact: true })
+    .getByRole("button", { name: "Explore sample data", exact: true })
     .click();
   await expect(page.locator("header")).toContainText("Example data");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
@@ -98,7 +98,7 @@ test("sample context remains consistent and avoids personal editing controls", a
   await expect(page.locator(".history-row")).toHaveCount(80);
   await expect(page.locator(".reading-actions")).toHaveCount(0);
   await page.locator(".reading-title").first().click();
-  await expect(page.getByRole("dialog")).toContainText("Example data");
+  await expect(page.locator(".reading-detail")).toContainText("Example data");
   await expect(
     page.getByRole("button", { name: "Edit reading", exact: true }),
   ).toHaveCount(0);
@@ -124,6 +124,7 @@ test("optional controls fit a 320px viewport and preserve readable filter text",
   ).toBe(true);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await page.getByRole("button", { name: /Map display/ }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await page
     .getByRole("button", { name: "Go to passage", exact: true })
     .click();

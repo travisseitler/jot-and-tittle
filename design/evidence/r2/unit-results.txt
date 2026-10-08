@@ -1,0 +1,64 @@
+
+> jot-and-tittle@0.2.0 test
+> node --import tsx --test src/*.test.ts
+
+✔ backup persists, tracks metadata and concurrent changes, and ignores failed exports (26.69575ms)
+✔ fingerprint includes all exportable fields but excludes selection and record order (1.03275ms)
+✔ date-only round trips and calendar boundaries are timezone independent (28.012833ms)
+✔ known instants and mixed ordering use current timezone and real elapsed time (1.491666ms)
+✔ v1 and v2 migrate deterministically with exact recovery metadata; v3 validates precision (9.244292ms)
+✔ future imports are retained and never colored fresh (1.832875ms)
+✔ canonical metadata is sequential and complete (3.588417ms)
+✔ common references and abbreviations (0.525291ms)
+✔ invalid references fail with useful errors (0.533916ms)
+✔ overlapping passages count a verse once per session (7.270083ms)
+✔ import rejects malformed, duplicate, and foreign data (5.5125ms)
+✔ every book and chapter resolves to its canonical bounds (5.099542ms)
+✔ range shorthand, alternative names, and book boundaries (0.093959ms)
+✔ recency and frequency use explicit buckets (0.185ms)
+✔ flow responds to width and fixed grid preserves canonical coordinates (0.165083ms)
+✔ combined metric independently encodes recency and frequency (0.291458ms)
+✔ journal names are trimmed, case-insensitively unique, and bounded (0.947458ms)
+✔ verse statistics are isolated per journal even for identical passages (9.539041ms)
+✔ journal exports round-trip all readings and empty journals (4.9725ms)
+✔ legacy backups import into the default journal (3.2455ms)
+✔ imports preserve existing IDs and keep differently identified same-name journals separate (0.209583ms)
+✔ imports reject orphan readings, duplicate journal IDs, and malformed journals (2.935667ms)
+✔ describeConflict and readingChanged explain concurrent edits (0.170333ms)
+✔ IndexedDB v1 upgrade preserves history; journals, selection, edits, and reset persist independently (12.299708ms)
+✔ concurrent additions keep both readings (1.092959ms)
+✔ journal create and delete remove only that journal’s readings (1.743ms)
+✔ conflicting edits reject the stale write (1.197875ms)
+✔ edit-versus-delete conflicts never recreate or silently drop drafts (2.1465ms)
+✔ concurrent reset preserves readings added after confirmation snapshot (1.169041ms)
+✔ import merge preserves unrelated concurrent readings (1.218166ms)
+✔ creating a reading for a missing journal is rejected (0.637833ms)
+✔ Undo restores exact deleted records and timestamps, with distinct consecutive opportunities (3.766875ms)
+✔ clear Undo captures the latest stored complete set and preserves later additions (3.908208ms)
+✔ Undo expiry is enforced by storage, even without UI timer delivery (1.491125ms)
+✔ Undo fails atomically for a missing journal or concurrently reused ID (3.825208ms)
+✔ moves preserve identity and reject stale or unavailable destinations (2.676417ms)
+✔ copy chains retain encounter identity, interchange, and independent edits (7.40625ms)
+✔ archiving preserves history, excludes writes, restores identity and round trips (4.063083ms)
+✔ journal deletion prevents default loss, stale confirmation and concurrent additions (2.471792ms)
+✔ persistent Trash restores exact records once across concurrent operations (2.44475ms)
+✔ Trash survives journal removal, requires explicit destination and never overwrites (4.54325ms)
+✔ retention cleanup uses deletion time and leaves active readings alone (1.829541ms)
+✔ aggregate counting unions copies per encounter while independent identical encounters count separately (2.591ms)
+✔ all scopes follow active journals while selected scopes stay fixed and may include archives (0.090458ms)
+✔ periods include calendar endpoints and retain explicit validation (2.414083ms)
+✔ known-time filtering uses the browser timezone across daylight-saving boundaries (0.631041ms)
+✔ known-time bucket transitions schedule exact boundaries and frequency avoids recency work (2.235208ms)
+✔ date-only recency changes at local midnight and accounts for daylight saving (16.202875ms)
+✔ comma shorthand switches explicitly between chapter and verse contexts (1.335417ms)
+✔ ranges set comma context to their ending book and chapter (0.12725ms)
+✔ whitespace and dash characters normalize and overlaps count once (1.464333ms)
+✔ invalid inherited numbers and malformed or ambiguous shorthand reject the entire input (0.447916ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 213.877

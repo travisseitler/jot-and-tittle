@@ -41,7 +41,8 @@ for (const instant of [false, true])
       .click();
     await page.clock.pauseAt(new Date("2026-10-05T23:59:58Z"));
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-    const canvas = page.getByRole("img", { name: /verse map/ });
+    const canvas = page.locator(".canvas-wrap canvas").first();
+    const navigator = page.getByRole("group", { name: /verse map,/ });
     const pixel = () =>
       canvas.evaluate((el: HTMLCanvasElement) =>
         Array.from(
@@ -58,7 +59,7 @@ for (const instant of [false, true])
     const before = await pixel();
     await page.clock.runFor(instant ? 1000 : 2000);
     await expect.poll(pixel).not.toEqual(before);
-    await expect(canvas).toHaveAttribute("aria-label", /3 verses/);
+    await expect(navigator).toHaveAttribute("aria-label", /3 verses/);
     const after = await pixel();
     await page.clock.setSystemTime(new Date("2026-10-13T00:00:00Z"));
     await page.evaluate(() =>

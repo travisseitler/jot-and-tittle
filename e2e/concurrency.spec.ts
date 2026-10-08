@@ -37,6 +37,7 @@ for (const remoteAction of ["edit", "delete"] as const) {
         })
         .click();
     }
+    await expect(other.locator(".capture-card")).toHaveCount(0);
     await expect(other.getByRole("dialog")).toHaveCount(0);
     await page
       .getByRole("button", { name: "Save changes", exact: true })
@@ -103,6 +104,7 @@ test("stale edits cannot overwrite a newer edit or resurrect a deleted reading",
   await other
     .getByRole("button", { name: "Save changes", exact: true })
     .click();
+  await expect(other.locator(".capture-card")).toHaveCount(0);
   await expect(other.getByRole("dialog")).toHaveCount(0);
   const conflict = page.getByRole("dialog", {
     name: "This reading changed elsewhere",
@@ -113,7 +115,7 @@ test("stale edits cannot overwrite a newer edit or resurrect a deleted reading",
     .click();
   await expect(page.getByLabel("Notes")).toHaveValue("newer edit");
   await page
-    .getByRole("dialog")
+    .locator(".capture-card")
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
   await expect(page.locator(".history-row")).toContainText("newer edit");

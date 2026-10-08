@@ -1,3 +1,7 @@
+import { HistoryView } from "./HistoryView";
+import { PatternsView } from "./PatternsView";
+import { CaptureSurface, DetailSurface } from "./DetailSurface";
+import { TextView } from "./TextView";
 import { ReadingDetail } from "./ReadingDetail";
 import { MapDisplayControls } from "./MapDisplayControls";
 import { Dialog } from "./Dialog";
@@ -25,9 +29,7 @@ import {
   Pencil,
   Trash2,
   Info,
-  CalendarDays,
   Leaf,
-  Layers,
   Clock3,
 } from "lucide-react";
 import {
@@ -79,6 +81,7 @@ import {
 import { Heatmap } from "./Heatmap";
 import { EmptyMapDemo } from "./EmptyMapDemo";
 import "./styles.css";
+import "./design.css";
 const dateLocal = localDate;
 const formatDate = formatReadingDate;
 const pretty = (n: number) => n.toLocaleString();
@@ -186,6 +189,62 @@ function App() {
   const [trashOpen, setTrashOpen] = useState(false);
   const [exploreEmpty, setExploreEmpty] = useState(false);
   const [mapDisplay, setMapDisplay] = useState(false);
+  const [adjacent, setAdjacent] = useState(() => window.innerWidth >= 1248);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width:1248px)");
+    const update = () => setAdjacent(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    const v = window.visualViewport;
+    if (!v) return;
+    const update = () => {
+      document.documentElement.classList.toggle(
+        "keyboard-open",
+        window.innerWidth < 768 && v.height < window.innerHeight * 0.75,
+      );
+    };
+    v.addEventListener("resize", update);
+    return () => {
+      v.removeEventListener("resize", update);
+      document.documentElement.classList.remove("keyboard-open");
+    };
+  }, []);
+  const origin = useRef<HTMLElement | null>(null);
+  const captureOrigin = useRef<HTMLElement | null>(null);
+  const draft = useRef<{
+    editing: Reading | null;
+    input: string;
+    date: string;
+    notes: string;
+    journalId: string;
+  } | null>(null);
+  const [presentation, setPresentation] = useState(() => {
+    try {
+      return localStorage.getItem("jot-presentation") === "text"
+        ? "text"
+        : "map";
+    } catch {
+      return "map";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("jot-presentation", presentation);
+    } catch {}
+  }, [presentation]);
+  function inspectVerse(id: number) {
+    origin.current = document.activeElement as HTMLElement;
+    setReadingDetail(null);
+    setInspectedVerse(id);
+    setSelected(id);
+  }
+  function inspectReading(r: Reading) {
+    origin.current = document.activeElement as HTMLElement;
+    setSelected(null);
+    setReadingDetail(r);
+  }
   const [passageSearch, setPassageSearch] = useState(false);
   const [readingDetail, setReadingDetail] = useState<Reading | null>(null);
   const [savedReading, setSavedReading] = useState<Reading | null>(null);
@@ -193,6 +252,8 @@ function App() {
   const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
   const readOnly = !!archivedViewId;
   const viewJournalId = archivedViewId || activeJournalId;
+  const [journalConflict, setJournalConflict] = useState<Journal | null>(null);
+  const [journalMissing, setJournalMissing] = useState(false);
   const [journalScopeMode, setJournalScopeMode] = useState("single");
   const [selectedJournalIds, setSelectedJournalIds] = useState<string[]>([
     DEFAULT_JOURNAL_ID,
@@ -217,9 +278,20 @@ function App() {
     readings: allReadings,
     activeJournalId,
   };
-  const importPlan = importPreview
-    ? mergeJournalImport(currentState, importPreview)
-    : null;
+  const [importName, setImportName] = useState("");
+  const [importVersion, setImportVersion] = useState(3);
+  const [importing, setImporting] = useState(false);
+  const [importChecking, setImportChecking] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  let importPlan: ReturnType<typeof mergeJournalImport> | null = null;
+  let importPlanError = "";
+  try {
+    if (importPreview)
+      importPlan = mergeJournalImport(currentState, importPreview);
+  } catch (e) {
+    importPlanError = (e as Error).message;
+  }
+
   const fileRef = useRef<HTMLInputElement>(null);
   function applyState(state: JournalState) {
     setTrash(state.trash || []);
@@ -235,6 +307,29 @@ function App() {
   }
   function handleConflict(e: unknown, forDelete = false): boolean {
     if (!(e instanceof ConflictError)) return false;
+    if (
+      e.kind === "journal-missing" &&
+      e.attempted &&
+      "ranges" in e.attempted
+    ) {
+      setConflict({ kind: e.kind, attempted: e.attempted as Reading });
+      repository
+        .load()
+        .then(applyState)
+        .catch((error) => setError((error as Error).message));
+      return true;
+    }
+    if (
+      e.kind.startsWith("journal-") ||
+      (e.stored && !("ranges" in e.stored))
+    ) {
+      setJournalError(describeConflict(e.kind));
+      setJournalConflict(
+        e.stored && !("ranges" in e.stored) ? (e.stored as Journal) : null,
+      );
+      setJournalMissing(e.kind === "journal-deleted");
+      return true;
+    }
     const stored =
       e.stored && "ranges" in e.stored ? (e.stored as Reading) : undefined;
     const attempted =
@@ -251,6 +346,7 @@ function App() {
   ) {
     if (saving || !storageReady) return false;
     setSaving(true);
+    setError("");
     try {
       const result = await work();
       onOk(result);
@@ -300,17 +396,13 @@ function App() {
           applyState(state);
           if (modal && editing) {
             const remote = state.readings.find((r) => r.id === editing.id);
-            if (!remote)
-              setConflict(
-                (c) => c || { kind: "reading-deleted", attempted: editing },
-              );
+            if (!remote) setConflict((c) => c || { kind: "reading-deleted" });
             else if (editingUpdatedAt && remote.updatedAt !== editingUpdatedAt)
               setConflict(
                 (c) =>
                   c || {
                     kind: "reading-updated",
                     stored: remote,
-                    attempted: editing,
                   },
               );
           }
@@ -318,10 +410,14 @@ function App() {
             const remote = state.journals.find(
               (j) => j.id === journalEditing.id,
             );
-            if (!remote)
+            if (!remote) {
+              setJournalMissing(true);
+              setJournalConflict(null);
               setJournalError("This journal was deleted in another tab.");
-            else if (remote.updatedAt !== journalEditing.updatedAt)
+            } else if (remote.updatedAt !== journalEditing.updatedAt) {
+              setJournalConflict(remote);
               setJournalError(describeConflict("journal-updated"));
+            }
           }
         })
         .catch(() => {});
@@ -415,18 +511,7 @@ function App() {
   );
   const viewed = stats.slice(scope.start, scope.end + 1),
     covered = viewed.filter((s) => s.count).length,
-    total = viewed.length,
-    bookStats = useMemo(
-      () =>
-        books.map((b) => ({
-          ...b,
-          read: stats.slice(b.start, b.end + 1).filter((s) => s.count).length,
-          visits: stats
-            .slice(b.start, b.end + 1)
-            .reduce((a, s) => a + s.count, 0),
-        })),
-      [stats],
-    );
+    total = viewed.length;
   const parsed = useMemo(() => {
     try {
       return { ranges: parsePassage(input), error: "" };
@@ -479,9 +564,12 @@ function App() {
   }
   function openJournalEditor(journal: Journal | null = null) {
     if (!storageReady) return;
+    setError("");
     setJournalEditing(journal);
     setJournalName(journal?.name || "");
     setJournalError("");
+    setJournalConflict(null);
+    setJournalMissing(false);
     setJournalDialog(true);
   }
   async function saveJournal(e: React.FormEvent) {
@@ -491,6 +579,7 @@ function App() {
       name = validateJournalName(journalName, journals, journalEditing?.id);
     } catch (e) {
       setJournalError((e as Error).message);
+      document.getElementById("journal-name")?.focus();
       return;
     }
     const now = new Date().toISOString();
@@ -527,30 +616,43 @@ function App() {
       (r && journals.find((j) => j.id === r.journalId)?.archived)
     )
       return;
+    setError("");
+    captureOrigin.current = document.activeElement as HTMLElement;
+    const retained =
+      draft.current && draft.current.editing?.id === r?.id && !prefill
+        ? draft.current
+        : null;
     setSample(false);
-    setEditing(r);
-    setRecordJournalId(r?.journalId || activeJournalId);
-    setEditingUpdatedAt(r?.updatedAt || null);
+    setEditing(retained?.editing ?? r);
+    setRecordJournalId(retained?.journalId || r?.journalId || activeJournalId);
+    setEditingUpdatedAt(retained?.editing?.updatedAt || r?.updatedAt || null);
     setConflict(null);
-    setInput(r?.originalInput || prefill);
-    setDate(r ? readingDate(r.startedAt) : dateLocal());
-    setNotes(r?.notes || "");
+    setInput(retained?.input ?? r?.originalInput ?? prefill);
+    setDate(retained?.date ?? (r ? readingDate(r.startedAt) : dateLocal()));
+    setNotes(retained?.notes ?? r?.notes ?? "");
     setFormError("");
     setSavedReading(null);
     setModal(true);
   }
+  function closeCapture() {
+    if (saving) return;
+    draft.current = { editing, input, date, notes, journalId: recordJournalId };
+    setModal(false);
+  }
   async function saveReading(e: React.FormEvent) {
     e.preventDefault();
     if (!parsed.ranges.length) {
-      setFormError(parsed.error);
-      document.querySelector<HTMLInputElement>("[data-initial-focus]")?.focus();
+      setFormError(parsed.error || "Enter a passage to record.");
+      document
+        .querySelector<HTMLInputElement>(".capture-card [data-initial-focus]")
+        ?.focus();
       return;
     }
 
     if (!date || !validCalendarDate(date) || date > dateLocal()) {
       setFormError("Choose a valid reading date, today or earlier.");
       document
-        .querySelector<HTMLInputElement>(".dialog input[type=date]")
+        .querySelector<HTMLInputElement>(".capture-card input[type=date]")
         ?.focus();
       return;
     }
@@ -562,15 +664,17 @@ function App() {
           applyState(state);
           setToast(
             editing
-              ? "Reading updated."
-              : `Reading saved in “${sample ? "Example data" : journals.find((j) => j.id === r.journalId)?.name}”.${!scopeJournalIds.includes(r.journalId) || !inPeriod(r, period) ? " Hidden by your current view. Choose Show this reading to find it." : ""}`,
+              ? `Reading updated: ${r.ranges.map(rangeLabel).join("; ")} · ${formatDate(r.startedAt)}.`
+              : `Reading saved: ${r.ranges.map(rangeLabel).join("; ")} · ${formatDate(r.startedAt)} in “${journals.find((j) => j.id === r.journalId)?.name}”.${!scopeJournalIds.includes(r.journalId) || !inPeriod(r, period) ? " Hidden by your current view. Choose Show this reading to find it." : ""}`,
           );
           setSavedReading(r);
           setConflict(null);
         },
       )
-    )
+    ) {
+      draft.current = null;
       setModal(false);
+    }
   }
   async function overwriteReading() {
     const base = conflict?.attempted || buildDraft();
@@ -591,32 +695,61 @@ function App() {
           setConflict(null);
         },
       )
-    )
+    ) {
+      draft.current = null;
       setModal(false);
+    }
   }
   async function saveReadingAsNew() {
-    const r = buildDraft(crypto.randomUUID());
-    if (!r) {
-      setFormError(
-        parsed.error || "Choose a valid reading date, today or earlier.",
+    const base = buildDraft(crypto.randomUUID());
+    if (!base) {
+      const message =
+        parsed.error || "Choose a valid reading date, today or earlier.";
+      setFormError(message);
+      setError(
+        `${message} Cancel this comparison to correct your retained draft.`,
       );
       return;
     }
+    if (!journals.some((j) => j.id === recordJournalId && !j.archived)) return;
+    const r = { ...base, journalId: recordJournalId };
     if (
       await runWrite(
         () => repository.putReading(r, null),
         (state) => {
           applyState(state);
-          setToast(`Reading saved in “${currentJournal.name}”.`);
+          setToast(
+            `Reading saved in “${journals.find((j) => j.id === r.journalId)?.name}”.`,
+          );
           setConflict(null);
           setEditing(null);
           setEditingUpdatedAt(null);
         },
       )
-    )
+    ) {
+      draft.current = null;
       setModal(false);
+    }
   }
-  function discardConflict() {
+  async function discardConflict() {
+    if (conflict?.stored) {
+      try {
+        const state = await repository.load();
+        applyState(state);
+        const latest = state.readings.find((r) => r.id === conflict.stored?.id);
+        if (!latest || latest.updatedAt !== conflict.stored.updatedAt) {
+          setConflict({
+            kind: latest ? "reading-updated" : "reading-deleted",
+            stored: latest,
+          });
+          return;
+        }
+      } catch (e) {
+        setError((e as Error).message);
+        return;
+      }
+    }
+
     if (conflict?.stored) {
       setEditing(conflict.stored);
       setEditingUpdatedAt(conflict.stored.updatedAt);
@@ -659,22 +792,60 @@ function App() {
     }
   }
   async function importFile(file?: File) {
-    if (!file) return;
+    if (!file || importing || saving) return;
+    setImporting(true);
+    setImportName(file.name);
+    setImportMessage("");
+    setError("");
     try {
-      setImportPreview(deserializeJournals(JSON.parse(await file.text())));
+      const raw = JSON.parse(await file.text());
+      setImportVersion(raw.version || 1);
+      setImportPreview(deserializeJournals(raw));
     } catch (e) {
       setError((e as Error).message);
     }
     if (fileRef.current) fileRef.current.value = "";
+    setImporting(false);
   }
   async function applyImport() {
-    if (!importPreview) return;
+    if (!importPreview || !importPlan || saving || importChecking) return;
+    setImportChecking(true);
+    const previewSummary = JSON.stringify([
+      importPlan.addedReadings,
+      importPlan.addedJournals,
+      importPlan.duplicates,
+      importPlan.renamedJournals,
+    ]);
+    try {
+      const fresh = await repository.load();
+      const plan = mergeJournalImport(fresh, importPreview);
+      applyState(fresh);
+      if (
+        previewSummary !==
+        JSON.stringify([
+          plan.addedReadings,
+          plan.addedJournals,
+          plan.duplicates,
+          plan.renamedJournals,
+        ])
+      ) {
+        setImportMessage(
+          "Your stored data changed. Review the refreshed counts and journal names before merging.",
+        );
+        return;
+      }
+    } catch (e) {
+      setError((e as Error).message);
+      return;
+    } finally {
+      setImportChecking(false);
+    }
     await runWrite(
       () => repository.mergeImport(importPreview),
       (result) => {
         applyState(result.state);
         setToast(
-          `${result.addedReadings} readings and ${result.addedJournals} journals imported.`,
+          `${result.addedReadings} readings and ${result.addedJournals} journals imported.${result.renamedJournals.length ? " " + result.renamedJournals.join("; ") : ""}`,
         );
         setImportPreview(null);
       },
@@ -730,7 +901,7 @@ function App() {
           applyState(state);
           offerUndo(
             state.undo,
-            `“${currentJournal.name}” readings cleared (${state.undo.count}).`,
+            `“${resetJournal?.name || destinationJournal.name}” readings cleared (${state.undo.count}).`,
           );
         },
       )
@@ -764,7 +935,28 @@ function App() {
       ? "The whole Bible"
       : books[+book].name + (chapter === "all" ? "" : ` ${chapter}`);
   return (
-    <div className="app">
+    <div
+      className={`app ${modal ? "capture-open" : ""}`}
+      onClickCapture={(e) => {
+        const target = (e.target as HTMLElement).closest<HTMLElement>(
+          "button,summary,a[href]",
+        );
+        if (target && !target.matches(":disabled,[aria-disabled=true]"))
+          target.focus({ preventScroll: true });
+      }}
+    >
+      <a
+        className="skip-link"
+        href={modal ? "#capture-content" : "#main-content"}
+        onClick={(e) => {
+          e.preventDefault();
+          document
+            .getElementById(modal ? "capture-content" : "main-content")
+            ?.focus();
+        }}
+      >
+        Skip to content
+      </a>
       <aside className="sidebar">
         <a
           className="brand"
@@ -823,7 +1015,7 @@ function App() {
           </button>
         </div>
         <div className="nav-label">YOUR SCRIPTURE, MAPPED</div>
-        <nav>
+        <nav aria-label="Main navigation">
           {[
             { id: "map", icon: Grid2X2, label: "Verse map" },
             { id: "history", icon: BookOpen, label: "Reading history" },
@@ -839,10 +1031,31 @@ function App() {
               aria-label={label}
               aria-current={page === id ? "page" : undefined}
               className={`nav-item ${page === id ? "active" : ""}`}
-              onClick={() => setPage(id)}
+              onClick={() => {
+                if (saving) return;
+                if (modal) closeCapture();
+                setPage(id);
+                setSelected(null);
+                setReadingDetail(null);
+                requestAnimationFrame(() =>
+                  document
+                    .querySelector<HTMLElement>(
+                      "main:not([hidden]) .page-heading h1",
+                    )
+                    ?.focus(),
+                );
+              }}
             >
               <Icon size={18} />
-              <span className="nav-title">{label}</span>
+              <span className="nav-title">
+                {id === "map"
+                  ? "Map"
+                  : id === "history"
+                    ? "History"
+                    : id === "insights"
+                      ? "Patterns"
+                      : "Your data"}
+              </span>
               <span className="nav-short-title">
                 {id === "map"
                   ? "Map"
@@ -881,7 +1094,7 @@ function App() {
         </div>
         <div className="sidebar-bottom">
           <div className="local-status">
-            <span /> Local-first, always yours
+            <span /> This browser on this device
           </div>
           <button onClick={() => setAbout(true)}>
             About Jot & Tittle <ArrowUpRight size={13} />
@@ -889,7 +1102,7 @@ function App() {
           <small>Made for attention, not achievement.</small>
         </div>
       </aside>
-      <main>
+      <main id="main-content" tabIndex={-1} hidden={modal}>
         <header className="topbar">
           <div>
             <span
@@ -911,7 +1124,8 @@ function App() {
           </div>
           <div className="top-actions">
             <span>
-              <ShieldCheck size={14} /> Stored on your device
+              <ShieldCheck size={14} />{" "}
+              {storageReady ? "Saved in this browser" : "Storage unavailable"}
             </span>
             <button
               className={
@@ -933,12 +1147,24 @@ function App() {
           <aside className="undo-notices" aria-label="Reading recovery">
             {undos.map((entry) => (
               <div className="undo-notice" key={entry.id}>
-                <span role="status">
-                  {entry.label}{" "}
+                <span>
+                  <span role="status">
+                    {entry.label} Undo is available for 30 seconds.
+                  </span>{" "}
                   {entry.expiresAt > undoNow
                     ? `Undo available for ${Math.ceil((entry.expiresAt - undoNow) / 1000)}s.`
                     : "Undo expired."}
                 </span>
+                {entry.expiresAt <= undoNow && (
+                  <button
+                    onClick={() => {
+                      setPage("data");
+                      setTrashOpen(true);
+                    }}
+                  >
+                    Open Trash
+                  </button>
+                )}
                 {entry.expiresAt > undoNow && (
                   <button
                     disabled={saving}
@@ -967,7 +1193,12 @@ function App() {
           </aside>
         )}
 
-        <div className="content">
+        <div className={`content ${page === "map" ? "map-content" : ""}`}>
+          {!ready && (
+            <p className="storage-notice" role="status">
+              Loading your readings…
+            </p>
+          )}
           {readOnly && (
             <p role="status">
               Archived journal · read-only.{" "}
@@ -990,14 +1221,16 @@ function App() {
                       ? "LOOK A LITTLE CLOSER"
                       : "LOCAL-FIRST BY DESIGN"}
               </div>
-              <h1>
+              <h1 tabIndex={-1}>
                 {page === "map"
-                  ? "See where you’ve been."
+                  ? !allReadings.length && !sample && !exploreEmpty
+                    ? "Your first reading"
+                    : "Your reading, at a glance"
                   : page === "history"
-                    ? "Your reading history."
+                    ? "Reading history"
                     : page === "insights"
-                      ? "Patterns, made visible."
-                      : "Your reading. Your data."}
+                      ? "Reading patterns"
+                      : "Your data"}
               </h1>
               <p>
                 {page === "map"
@@ -1048,8 +1281,8 @@ function App() {
           {sample && (
             <div className="sample-banner">
               <span>
-                <Leaf size={16} /> You’re exploring sample readings. Your
-                personal history is separate.
+                <Leaf size={16} /> Sample readings · your personal history stays
+                separate.
               </span>
               <button onClick={() => setSample(false)}>
                 Return to my readings <X size={14} />
@@ -1059,257 +1292,520 @@ function App() {
           {page === "map" &&
             !sample &&
             !allReadings.length &&
-            !exploreEmpty && (
-              <section className="panel welcome">
-                <EmptyMapDemo />
-                <h2>Begin with a passage you’ve read.</h2>
-                <p>
-                  Record a chapter, a few verses, or several passages together.
-                  Your map grows with your reading.
-                </p>
-                <button className="primary" onClick={() => openLog()}>
-                  Record your first reading
-                </button>
-                <button className="secondary" onClick={() => setSample(true)}>
-                  Explore a sample map
-                </button>
-                <p>
-                  Your journal is saved in this browser. Download a backup from
-                  Your data to keep another copy.
-                </p>
-                <button className="quiet" onClick={() => setExploreEmpty(true)}>
-                  Explore my empty map
-                </button>
+            !exploreEmpty &&
+            ready &&
+            storageReady && (
+              <section className="welcome">
+                <div className="welcome-composition">
+                  <div className="welcome-copy">
+                    <h2 className="sr-only">Log your first reading</h2>
+                    <p>
+                      Record a chapter, a few verses, or several passages
+                      together. Your map grows with your reading.
+                    </p>
+                    <div className="welcome-actions">
+                      <button className="primary" onClick={() => openLog()}>
+                        Log your first reading <ArrowRight size={16} />
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => setSample(true)}
+                      >
+                        Explore sample data
+                      </button>
+                    </div>
+                  </div>
+                  <EmptyMapDemo />
+                </div>
+                <div className="welcome-footnote">
+                  <p>
+                    <ShieldCheck size={17} /> Your journal is saved in this
+                    browser. Export a backup from Your data to keep another
+                    copy.
+                  </p>
+                  <button
+                    className="quiet"
+                    onClick={() => setExploreEmpty(true)}
+                  >
+                    Explore my empty map <ArrowRight size={14} />
+                  </button>
+                </div>
               </section>
             )}
           {page === "map" &&
             (sample || allReadings.length > 0 || exploreEmpty) && (
               <>
-                <p className="map-overview">
-                  {pretty(covered)} verses recorded · {pretty(active.length)}{" "}
-                  reading sessions
-                  {sorted[0] && (
-                    <> · Last read {formatDate(sorted[0].startedAt)}</>
-                  )}
-                </p>
-                <section className="map-card">
-                  <div className="map-heading">
-                    <div>
-                      <h2>
-                        Your verse map <span>{pretty(total)} verses</span>
-                      </h2>
-                      <p>Small marks. A view of the whole.</p>
-                    </div>
-                    <button
-                      className="secondary"
-                      aria-expanded={mapDisplay}
-                      aria-controls="map-display-panel"
-                      onClick={() => setMapDisplay(!mapDisplay)}
-                    >
-                      Map display ·{" "}
-                      {metric === "combined"
-                        ? "Combined"
-                        : metric === "recency"
-                          ? "Recency"
-                          : "Frequency"}
-                    </button>
+                <dl
+                  className="reading-summary"
+                  aria-label="Reading map summary"
+                >
+                  <div>
+                    <dt>Verses recorded</dt>
+                    <dd>
+                      {pretty(covered)}{" "}
+                      <span>of {pretty(total)} in this map</span>
+                    </dd>
                   </div>
-                  <div className="map-toolbar">
-                    <div className="scope-controls">
-                      <label>
-                        <BookOpen size={14} />
-                        <select
-                          aria-label="Book scope"
-                          value={book}
-                          onChange={(e) => {
-                            setBook(e.target.value);
-                            setChapter("all");
-                            setScopeRange(null);
-                            setScopeText("");
-                          }}
-                        >
-                          <option value="all">Whole Bible</option>
-                          {books.map((b) => (
-                            <option key={b.index} value={b.index}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={12} />
-                      </label>
-                      {book !== "all" && (
-                        <label>
-                          <select
-                            aria-label="Chapter scope"
-                            value={chapter}
-                            onChange={(e) => {
-                              setChapter(e.target.value);
-                              setScopeRange(null);
+                  <div>
+                    <dt>Reading sessions</dt>
+                    <dd>
+                      {pretty(active.length)} <span>in the current view</span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Last reading</dt>
+                    <dd className="summary-date">
+                      {sorted[0]
+                        ? formatDate(sorted[0].startedAt)
+                        : "No readings yet"}
+                    </dd>
+                  </div>
+                </dl>
+                <div
+                  className={`detail-layout ${selected !== null || readingDetail ? "has-detail" : ""}`}
+                >
+                  <div className="detail-main">
+                    <section className="map-card">
+                      <div className="map-toolbar">
+                        <div className="scope-controls">
+                          {" "}
+                          <div
+                            className="presentation-controls"
+                            role="group"
+                            aria-label="Map presentation"
+                          >
+                            <button
+                              className="secondary"
+                              aria-pressed={presentation === "map"}
+                              onClick={() => setPresentation("map")}
+                            >
+                              Color map
+                            </button>
+                            <button
+                              className="secondary"
+                              aria-pressed={presentation === "text"}
+                              onClick={() => setPresentation("text")}
+                            >
+                              Text view
+                            </button>
+                          </div>
+                          <button
+                            className="secondary"
+                            aria-expanded={mapDisplay}
+                            aria-controls="map-display-panel"
+                            onClick={() => setMapDisplay(!mapDisplay)}
+                          >
+                            Map display ·{" "}
+                            {metric === "combined"
+                              ? "Combined"
+                              : metric === "recency"
+                                ? "Recency"
+                                : "Frequency"}
+                          </button>
+                          <label>
+                            <BookOpen size={14} />
+                            <select
+                              aria-label="Book scope"
+                              value={book}
+                              onChange={(e) => {
+                                setBook(e.target.value);
+                                setChapter("all");
+                                setScopeRange(null);
+                                setScopeText("");
+                              }}
+                            >
+                              <option value="all">Whole Bible</option>
+                              {books.map((b) => (
+                                <option key={b.index} value={b.index}>
+                                  {b.name}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={12} />
+                          </label>
+                          {book !== "all" && (
+                            <label>
+                              <select
+                                aria-label="Chapter scope"
+                                value={chapter}
+                                onChange={(e) => {
+                                  setChapter(e.target.value);
+                                  setScopeRange(null);
+                                }}
+                              >
+                                <option value="all">All chapters</option>
+                                {books[+book].chapters.map((_, i) => (
+                                  <option key={i} value={i + 1}>
+                                    Chapter {i + 1}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
+                          <button
+                            id="passage-search-trigger"
+                            className="secondary"
+                            aria-expanded={passageSearch}
+                            aria-controls="passage-search"
+                            onClick={() => {
+                              setPassageSearch(!passageSearch);
+                              if (!passageSearch)
+                                requestAnimationFrame(() =>
+                                  document
+                                    .getElementById("passage-search-input")
+                                    ?.focus(),
+                                );
                             }}
                           >
-                            <option value="all">All chapters</option>
-                            {books[+book].chapters.map((_, i) => (
-                              <option key={i} value={i + 1}>
-                                Chapter {i + 1}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      <button
-                        className="quiet"
-                        aria-expanded={passageSearch}
-                        aria-controls="passage-search"
-                        onClick={() => setPassageSearch(!passageSearch)}
-                      >
-                        Go to passage
-                      </button>
-                      <form
-                        hidden={!passageSearch}
-                        id="passage-search"
-                        className="scope-search"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          applyScope();
-                        }}
-                      >
-                        <Search size={14} />
-                        <input
-                          aria-label="Focus on a passage"
-                          placeholder="Focus on a passage…"
-                          value={scopeText}
-                          onChange={(e) => setScopeText(e.target.value)}
-                        />
-                        {scopeText && (
-                          <button aria-label="Focus passage">
-                            <ArrowRight size={14} />
+                            Go to passage
                           </button>
+                          <form
+                            hidden={!passageSearch}
+                            id="passage-search"
+                            className="scope-search"
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setPassageSearch(false);
+                                document
+                                  .getElementById("passage-search-trigger")
+                                  ?.focus();
+                              }
+                            }}
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              applyScope();
+                            }}
+                          >
+                            <Search size={14} />
+                            <input
+                              id="passage-search-input"
+                              aria-invalid={!!scopeError}
+                              aria-describedby={
+                                scopeError ? "scope-error" : undefined
+                              }
+                              aria-label="Focus on a passage"
+                              placeholder="Focus on a passage…"
+                              value={scopeText}
+                              onChange={(e) => setScopeText(e.target.value)}
+                            />
+                            {scopeText && (
+                              <button aria-label="Focus passage">
+                                <ArrowRight size={14} />
+                              </button>
+                            )}
+                          </form>
+                        </div>
+                      </div>
+                      {scopeError && (
+                        <div
+                          id="scope-error"
+                          className="inline-error"
+                          role="alert"
+                        >
+                          {scopeError}
+                        </div>
+                      )}
+                      {(book !== "all" || scopeRange) && (
+                        <div className="scope-tag">
+                          Viewing {scopeName}
+                          <button onClick={resetScope}>
+                            <X size={12} /> Whole Bible
+                          </button>
+                        </div>
+                      )}
+                      <div className="map-area">
+                        {!ready ? (
+                          <div className="loading">
+                            Opening your reading space…
+                          </div>
+                        ) : (
+                          <>
+                            <div hidden={presentation !== "text"}>
+                              <TextView
+                                scope={scope}
+                                stats={stats}
+                                everStats={unfilteredStats}
+                                readings={active}
+                                journals={journals}
+                                onSelect={inspectVerse}
+                                onReadingSelect={inspectReading}
+                                onScopeChange={(r: Range) => {
+                                  setScopeRange(r);
+                                  setBook("all");
+                                  setChapter("all");
+                                  setSelected(null);
+                                }}
+                                frequencyUnit={
+                                  !archivedViewId &&
+                                  journalScopeMode !== "single" &&
+                                  !sample
+                                    ? "encounters"
+                                    : "reading records"
+                                }
+                              />
+                            </div>
+                            <div hidden={presentation !== "map"}>
+                              <Heatmap
+                                scope={scope}
+                                stats={stats}
+                                everStats={unfilteredStats}
+                                now={timeNow}
+                                metric={metric}
+                                layout={layout}
+                                zoom={zoom}
+                                onInspect={setInspectedVerse}
+                                selected={selected}
+                                frequencyUnit={
+                                  !archivedViewId &&
+                                  journalScopeMode !== "single" &&
+                                  !sample
+                                    ? "recorded encounters"
+                                    : "recorded readings"
+                                }
+                                onSelect={inspectVerse}
+                              />
+                            </div>
+                          </>
                         )}
-                      </form>
-                    </div>
-                  </div>
-                  {mapDisplay && (
-                    <MapDisplayControls
-                      metric={metric}
-                      layout={layout}
-                      zoom={zoom}
-                      setMetric={setMetric}
-                      setLayout={setLayout}
-                      setZoom={setZoom}
+                      </div>
+                      <p className="counting-rule">
+                        {!archivedViewId &&
+                        journalScopeMode !== "single" &&
+                        !sample
+                          ? "Counts deduplicate shared encounters across selected journals."
+                          : "Counts reflect reading records in this journal."}
+                      </p>
+                      <div className="map-footer">
+                        <span>
+                          <span className="dot-square" /> One square, one verse{" "}
+                          <span className="footer-separator">·</span> Inspect a
+                          verse for counts and dates
+                        </span>
+
+                        <MetricLegend metric={metric} />
+                      </div>
+                      <section
+                        className="text-inspector"
+                        aria-label="Textual verse inspection"
+                      >
+                        <h3>Inspect a verse</h3>
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            try {
+                              const ranges = parsePassage(inspectText);
+                              if (rangeCount(ranges) !== 1)
+                                throw new Error(
+                                  "Enter one verse, such as John 3:16.",
+                                );
+                              if (
+                                ranges[0].start < scope.start ||
+                                ranges[0].start > scope.end
+                              )
+                                throw new Error(
+                                  "This verse is outside the current passage scope. Use Text view to find it and explicitly change passage scope.",
+                                );
+                              setInspectedVerse(ranges[0].start);
+                              inspectVerse(ranges[0].start);
+                              setInspectError("");
+                            } catch (e) {
+                              setInspectError((e as Error).message);
+                            }
+                          }}
+                        >
+                          <label className="field-label">
+                            Verse reference
+                            <input
+                              aria-invalid={!!inspectError}
+                              aria-describedby={
+                                inspectError ? "inspect-error" : undefined
+                              }
+                              value={inspectText}
+                              onChange={(e) => setInspectText(e.target.value)}
+                              placeholder="John 3:16"
+                            />
+                          </label>
+                          <button className="secondary">Inspect verse</button>
+                        </form>
+                        {inspectError && (
+                          <p id="inspect-error" role="alert">
+                            {inspectError}
+                          </p>
+                        )}
+                        <p role="status" aria-live="polite">
+                          {reference(inspectedVerse)} ·{" "}
+                          {stats[inspectedVerse].count} recorded readings ·{" "}
+                          {stats[inspectedVerse].last
+                            ? `Last read ${formatDate(stats[inspectedVerse].last!)}`
+                            : unfilteredStats[inspectedVerse].count
+                              ? "No readings in this period"
+                              : "Never recorded"}
+                        </p>
+                        <button
+                          disabled={inspectedVerse <= scope.start}
+                          onClick={() =>
+                            setInspectedVerse((id) =>
+                              Math.max(scope.start, id - 1),
+                            )
+                          }
+                        >
+                          Previous verse
+                        </button>
+                        <button
+                          disabled={inspectedVerse >= scope.end}
+                          onClick={() =>
+                            setInspectedVerse((id) =>
+                              Math.min(scope.end, id + 1),
+                            )
+                          }
+                        >
+                          Next verse
+                        </button>
+                        <button onClick={() => inspectVerse(inspectedVerse)}>
+                          Open inspected verse details
+                        </button>
+                        <details>
+                          <summary>Keyboard and text inspection</summary>
+                          <p>
+                            Arrow keys inspect verses; Home and End reach row
+                            edges, Ctrl+Home and Ctrl+End reach scope
+                            boundaries. Enter opens details; stationary tap
+                            previews a verse. Text inspection provides the same
+                            counts and dates without using the map.
+                          </p>
+                        </details>
+                      </section>
+                    </section>
+                  </div>{" "}
+                  {selected !== null && (
+                    <DetailSurface
+                      title={reference(selected)}
+                      onClose={() => setSelected(null)}
+                      origin={origin.current}
+                      returnLabel={
+                        presentation === "text"
+                          ? "Back to Text view"
+                          : "Back to map"
+                      }
+                    >
+                      <div className="verse-detail">
+                        <span className="eyebrow">VERSE READING HISTORY</span>
+                        <strong>
+                          {stats[selected].count}{" "}
+                          <small>
+                            {!archivedViewId &&
+                            journalScopeMode !== "single" &&
+                            !sample
+                              ? "recorded encounters"
+                              : "recorded readings"}
+                          </small>
+                        </strong>
+                        <p>
+                          {stats[selected].last
+                            ? `Last read ${formatDate(stats[selected].last!)}`
+                            : unfilteredStats[selected].count
+                              ? "No readings in this period."
+                              : "Never recorded in these journals."}
+                        </p>
+                        {!stats[selected].count &&
+                          unfilteredStats[selected].last && (
+                            <p>
+                              All dates in these journals: last recorded{" "}
+                              {formatDate(unfilteredStats[selected].last!)}.
+                            </p>
+                          )}
+                        {stats[selected].first && (
+                          <p className="muted">
+                            First recorded {formatDate(stats[selected].first!)}
+                          </p>
+                        )}
+                      </div>
+                      <div className="verse-events">
+                        {sorted
+                          .filter((r) =>
+                            r.ranges.some(
+                              (q) => selected >= q.start && selected <= q.end,
+                            ),
+                          )
+                          .map((r) => (
+                            <div key={r.id}>
+                              <button
+                                className="reading-title"
+                                onClick={() => inspectReading(r)}
+                              >
+                                {r.ranges.map(rangeLabel).join("; ")}
+                              </button>
+                              <span>{formatDate(r.startedAt)}</span>
+                              <small>
+                                {sample
+                                  ? "Example data"
+                                  : journals.find((j) => j.id === r.journalId)
+                                      ?.name}{" "}
+                                · {r.ranges.map(rangeLabel).join("; ")}
+                              </small>
+                              <p className="reading-notes">
+                                {r.notes || "No notes for this reading."}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                      <div className="dialog-actions">
+                        <button
+                          className="secondary"
+                          onClick={() => {
+                            const v = verses[selected];
+                            setBook(String(v.book));
+                            setChapter(String(v.chapter));
+                            setScopeRange(null);
+                            setSelected(null);
+                            setPage("map");
+                          }}
+                        >
+                          View chapter
+                        </button>
+                        <button
+                          className="primary"
+                          disabled={sample || readOnly || !storageReady}
+                          onClick={() => {
+                            const text = reference(selected);
+                            setSelected(null);
+                            openLog(null, text);
+                          }}
+                        >
+                          Log this verse <Plus size={15} />
+                        </button>
+                      </div>
+                    </DetailSurface>
+                  )}
+                  {readingDetail && (
+                    <ReadingDetail
+                      presentation={adjacent ? "pane" : "page"}
+                      returnLabel="Back to map"
+                      restoreFocus={origin.current}
+                      reading={readingDetail}
+                      journalName={
+                        sample
+                          ? "Example data"
+                          : journals.find(
+                              (j) => j.id === readingDetail.journalId,
+                            )?.name || "Journal"
+                      }
+                      editable={
+                        !sample &&
+                        !readOnly &&
+                        !journals.find((j) => j.id === readingDetail.journalId)
+                          ?.archived
+                      }
+                      onClose={() => setReadingDetail(null)}
+                      onEdit={() => {
+                        const r = readingDetail;
+                        setReadingDetail(null);
+                        openLog(r);
+                      }}
                     />
                   )}
-                  {scopeError && (
-                    <div className="inline-error">{scopeError}</div>
-                  )}
-                  {(book !== "all" || scopeRange) && (
-                    <div className="scope-tag">
-                      Viewing {scopeName}
-                      <button onClick={resetScope}>
-                        <X size={12} /> Whole Bible
-                      </button>
-                    </div>
-                  )}
-                  <div className="map-area">
-                    {!ready ? (
-                      <div className="loading">Opening your reading space…</div>
-                    ) : (
-                      <Heatmap
-                        scope={scope}
-                        stats={stats}
-                        everStats={unfilteredStats}
-                        now={timeNow}
-                        metric={metric}
-                        layout={layout}
-                        zoom={zoom}
-                        onInspect={setInspectedVerse}
-                        onSelect={(id) => {
-                          setInspectedVerse(id);
-                          setSelected(id);
-                        }}
-                      />
-                    )}
-                  </div>
-                  <div className="map-footer">
-                    <span>
-                      <span className="dot-square" /> One square, one verse{" "}
-                      <span className="footer-separator">·</span> Inspect a
-                      verse for counts and dates
-                    </span>
-
-                    <MetricLegend metric={metric} />
-                  </div>
-                  <section
-                    className="text-inspector"
-                    aria-label="Textual verse inspection"
-                  >
-                    <h3>Inspect a verse</h3>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        try {
-                          const ranges = parsePassage(inspectText);
-                          if (rangeCount(ranges) !== 1)
-                            throw new Error(
-                              "Enter one verse, such as John 3:16.",
-                            );
-                          setInspectedVerse(ranges[0].start);
-                          setSelected(ranges[0].start);
-                          setInspectError("");
-                        } catch (e) {
-                          setInspectError((e as Error).message);
-                        }
-                      }}
-                    >
-                      <label className="field-label">
-                        Verse reference
-                        <input
-                          value={inspectText}
-                          onChange={(e) => setInspectText(e.target.value)}
-                          placeholder="John 3:16"
-                        />
-                      </label>
-                      <button>Inspect verse</button>
-                    </form>
-                    {inspectError && <p role="alert">{inspectError}</p>}
-                    <p role="status" aria-live="polite">
-                      {reference(inspectedVerse)} ·{" "}
-                      {stats[inspectedVerse].count} recorded readings ·{" "}
-                      {stats[inspectedVerse].last
-                        ? `Last read ${formatDate(stats[inspectedVerse].last!)}`
-                        : unfilteredStats[inspectedVerse].count
-                          ? "No readings in this period"
-                          : "Never recorded"}
-                    </p>
-                    <button
-                      disabled={inspectedVerse <= scope.start}
-                      onClick={() =>
-                        setInspectedVerse((id) => Math.max(scope.start, id - 1))
-                      }
-                    >
-                      Previous verse
-                    </button>
-                    <button
-                      disabled={inspectedVerse >= scope.end}
-                      onClick={() =>
-                        setInspectedVerse((id) => Math.min(scope.end, id + 1))
-                      }
-                    >
-                      Next verse
-                    </button>
-                    <button onClick={() => setSelected(inspectedVerse)}>
-                      Open inspected verse details
-                    </button>
-                    <details>
-                      <summary>Keyboard and text inspection</summary>
-                      <p>
-                        Arrow keys on the map inspect verses; Home and End jump
-                        to the scope boundaries. Enter or tap opens details.
-                        Text inspection provides the same counts and dates
-                        without using the map.
-                      </p>
-                    </details>
-                  </section>
-                </section>
+                </div>
                 <div className="below-map">
                   <section className="recent-section">
                     <div className="section-title">
@@ -1323,7 +1819,7 @@ function App() {
                         <button
                           className="recent-reading"
                           key={r.id}
-                          onClick={() => setReadingDetail(r)}
+                          onClick={() => inspectReading(r)}
                         >
                           <span className="reading-icon">
                             <BookOpen size={16} />
@@ -1365,7 +1861,7 @@ function App() {
                     </p>
                     {!active.length ? (
                       <button onClick={() => setSample(true)}>
-                        Explore a sample map <ArrowUpRight size={14} />
+                        Explore sample data <ArrowUpRight size={14} />
                       </button>
                     ) : (
                       <button onClick={() => setPage("insights")}>
@@ -1377,280 +1873,88 @@ function App() {
               </>
             )}
           {page === "history" && (
-            <section className="panel">
-              <div className="section-title">
-                <h2>{active.length} reading sessions</h2>
-                <div className="history-search">
-                  <Search size={15} />
-                  <input
-                    aria-label="Search reading history"
-                    value={historyQuery}
-                    onChange={(e) => setHistoryQuery(e.target.value)}
-                    placeholder="Search dates, passages or notes"
-                  />
-                </div>
-              </div>
-              {sorted
-                .filter((r) =>
-                  (
-                    r.originalInput +
-                    " " +
-                    r.notes +
-                    " " +
-                    r.ranges.map(rangeLabel).join(" ") +
-                    " " +
-                    readingDate(r.startedAt) +
-                    " " +
-                    formatDate(r.startedAt)
-                  )
-                    .toLowerCase()
-                    .includes(historyQuery.toLowerCase()),
-                )
-                .map((r, index, rows) => (
-                  <React.Fragment key={r.id}>
-                    {(index === 0 ||
-                      readingDate(rows[index - 1].startedAt) !==
-                        readingDate(r.startedAt)) && (
-                      <h3 className="history-day-heading">
-                        {formatDate(r.startedAt)}
-                      </h3>
-                    )}
-                    <div className="history-row" key={r.id}>
-                      <button
-                        className="history-date"
-                        onClick={() => setReadingDetail(r)}
-                      >
-                        <CalendarDays size={16} />
-                        {formatDate(r.startedAt)}
-                      </button>
-                      <div className="history-passage">
-                        <span>
-                          {sample
-                            ? "Example data"
-                            : journals.find((j) => j.id === r.journalId)?.name}
-                        </span>
-                        <button
-                          className="reading-title"
-                          onClick={() => setReadingDetail(r)}
-                        >
-                          {r.ranges.map(rangeLabel).join("; ")}
-                        </button>
-                        <small>
-                          {pretty(rangeCount(r.ranges))} unique verses
-                          {r.notes && ` · ${r.notes}`}
-                        </small>
-                      </div>
-                      {!sample &&
-                        !readOnly &&
-                        !journals.find((j) => j.id === r.journalId)
-                          ?.archived && (
-                          <details className="reading-actions">
-                            <summary>More actions</summary>
-                            <button
-                              className="icon-btn"
-                              disabled={
-                                sample ||
-                                readOnly ||
-                                !!journals.find((j) => j.id === r.journalId)
-                                  ?.archived
-                              }
-                              aria-label={`Move ${r.originalInput}`}
-                              onClick={() => {
-                                setTransferMode("move");
-                                setTransfer(r);
-                                setDestination("");
-                                setTransferError("");
-                              }}
-                            >
-                              <ArrowRight size={16} />
-                            </button>
-                            <button
-                              className="icon-btn"
-                              disabled={
-                                sample ||
-                                readOnly ||
-                                !!journals.find((j) => j.id === r.journalId)
-                                  ?.archived
-                              }
-                              aria-label={`Copy ${r.originalInput}`}
-                              onClick={() => {
-                                setTransferMode("copy");
-                                setCopyId(crypto.randomUUID());
-                                setTransfer(r);
-                                setDestination("");
-                                setTransferError("");
-                              }}
-                            >
-                              <Layers size={16} />
-                            </button>
-
-                            <button
-                              className="icon-btn"
-                              disabled={
-                                sample ||
-                                readOnly ||
-                                !!journals.find((j) => j.id === r.journalId)
-                                  ?.archived
-                              }
-                              aria-label={`Delete ${r.originalInput}`}
-                              onClick={() => setConfirmDelete(r)}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </details>
-                        )}
-                    </div>
-                  </React.Fragment>
-                ))}
-              {!sorted.length && (
-                <div className="large-empty">
-                  <BookOpen size={32} />
-                  <h3>
-                    {readings.length || sample
-                      ? "No readings in this view."
-                      : "A reading history starts with one passage."}
-                  </h3>
-                  <p>
-                    {readings.length || sample
-                      ? "Change View readings or Reset view to see more of your history."
-                      : "Log a chapter, a few verses, or several passages together."}
-                  </p>
-                  <button className="primary" onClick={() => openLog()}>
-                    <Plus size={16} /> Log a reading
-                  </button>
-                </div>
+            <div
+              className={`detail-layout ${readingDetail ? "has-detail" : ""}`}
+            >
+              <div className="detail-main">
+                <HistoryView
+                  sorted={sorted}
+                  sessionCount={active.length}
+                  hasReadings={!!readings.length}
+                  sample={sample}
+                  readOnly={readOnly}
+                  journals={journals}
+                  query={historyQuery}
+                  onQueryChange={setHistoryQuery}
+                  onInspectReading={inspectReading}
+                  onMoveReading={(r) => {
+                    setTransferMode("move");
+                    setTransfer(r);
+                    setDestination("");
+                    setTransferError("");
+                  }}
+                  onCopyReading={(r) => {
+                    setTransferMode("copy");
+                    setCopyId(crypto.randomUUID());
+                    setTransfer(r);
+                    setDestination("");
+                    setTransferError("");
+                  }}
+                  onDeleteReading={setConfirmDelete}
+                  onLogReading={() => openLog()}
+                />
+              </div>{" "}
+              {readingDetail && (
+                <ReadingDetail
+                  presentation={adjacent ? "pane" : "page"}
+                  returnLabel={
+                    page === "history" ? "Back to History" : "Back to map"
+                  }
+                  restoreFocus={origin.current}
+                  reading={readingDetail}
+                  journalName={
+                    sample
+                      ? "Example data"
+                      : journals.find((j) => j.id === readingDetail.journalId)
+                          ?.name || "Journal"
+                  }
+                  editable={
+                    !sample &&
+                    !readOnly &&
+                    !journals.find((j) => j.id === readingDetail.journalId)
+                      ?.archived
+                  }
+                  onClose={() => setReadingDetail(null)}
+                  onEdit={() => {
+                    const r = readingDetail;
+                    setReadingDetail(null);
+                    openLog(r);
+                  }}
+                />
               )}
-              {sorted.length > 0 &&
-                !sorted.some((r) =>
-                  (
-                    r.originalInput +
-                    " " +
-                    r.notes +
-                    " " +
-                    r.ranges.map(rangeLabel).join(" ") +
-                    " " +
-                    readingDate(r.startedAt) +
-                    " " +
-                    formatDate(r.startedAt)
-                  )
-                    .toLowerCase()
-                    .includes(historyQuery.toLowerCase()),
-                ) && (
-                  <p className="muted">
-                    No readings match your search.{" "}
-                    <button onClick={() => setHistoryQuery("")}>
-                      Clear search
-                    </button>
-                  </p>
-                )}
-            </section>
+            </div>
           )}
           {page === "insights" && (
-            <>
-              <section className="pattern-overview">
-                <h2>Where does your reading take you?</h2>
-                <p>
-                  {active.length
-                    ? `You’ve recorded ${active.length} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
-                    : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
-                </p>
-              </section>
-              <section className="stats-row">
-                <div className="stat">
-                  <div>UNIQUE VERSES</div>
-                  <strong>{pretty(stats.filter((s) => s.count).length)}</strong>
-                  <span>Verses with at least one recorded reading</span>
-                </div>
-                <div className="stat">
-                  <div>REVISITED VERSES</div>
-                  <strong>
-                    {pretty(stats.filter((s) => s.count > 1).length)}
-                  </strong>
-                  <span>Verses recorded in multiple sessions</span>
-                </div>
-                <div className="stat">
-                  <div>VERSE READINGS</div>
-                  <strong>
-                    {pretty(stats.reduce((a, s) => a + s.count, 0))}
-                  </strong>
-                  <span>All verse interactions across your sessions</span>
-                </div>
-              </section>
-              <section className="panel">
-                <div className="section-title">
-                  <h2>Where have you been reading?</h2>
-                  <span className="muted">
-                    Unique verses recorded · canonical order
-                  </span>
-                </div>
-                <details className="book-breakdown">
-                  <summary>Explore all 66 books</summary>
-                  <div className="book-grid">
-                    {bookStats.map((b) => (
-                      <button
-                        className="book-stat"
-                        key={b.index}
-                        onClick={() => {
-                          setBook(String(b.index));
-                          setChapter("all");
-                          setScopeRange(null);
-                          setPage("map");
-                        }}
-                      >
-                        <div>
-                          <strong>{b.name}</strong>
-                          <span>
-                            {b.read
-                              ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
-                              : "—"}
-                          </span>
-                        </div>
-                        <div className="progress">
-                          <i
-                            style={{
-                              width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <small>
-                          {pretty(b.read)} of {pretty(b.end - b.start + 1)}{" "}
-                          verses
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              </section>
-              <section className="panel return-panel">
-                <h2>Places you return to</h2>
-                <p className="muted">
-                  The ten most frequently recorded verses. Ties follow canonical
-                  order.
-                </p>
-                {stats
-                  .map((s, i) => ({ ...s, i }))
-                  .filter((s) => s.count > 1)
-                  .sort((a, b) => b.count - a.count || a.i - b.i)
-                  .slice(0, 10)
-                  .map((s) => (
-                    <button
-                      className="return-row"
-                      key={s.i}
-                      onClick={() => setSelected(s.i)}
-                    >
-                      <span>{reference(s.i)}</span>
-                      <span>
-                        {s.count} readings <ChevronRight size={14} />
-                      </span>
-                    </button>
-                  ))}
-                {!stats.some((s) => s.count > 1) && (
-                  <p className="muted">
-                    Repeated readings will appear here as your history grows.
-                  </p>
-                )}
-              </section>
-            </>
+            <PatternsView
+              stats={stats}
+              sessionCount={active.length}
+              deduplicatesEncounters={
+                !archivedViewId && journalScopeMode !== "single" && !sample
+              }
+              onExploreBook={(bookIndex) => {
+                setBook(String(bookIndex));
+                setChapter("all");
+                setScopeRange(null);
+                setPage("map");
+              }}
+              onInspectVerse={(verseId) => {
+                setScopeRange(null);
+                setBook("all");
+                setChapter("all");
+                setPage("map");
+                inspectVerse(verseId);
+              }}
+            />
           )}
           {page === "data" && (
             <>
@@ -1659,8 +1963,8 @@ function App() {
                 <div>
                   <h2>At home on your device.</h2>
                   <p>
-                    Your history stays in this browser’s IndexedDB storage.
-                    There’s no account, cloud sync, or reading telemetry.
+                    Your history stays in this browser on this device. There’s
+                    no account, cloud sync, or reading telemetry.
                   </p>
                 </div>
               </div>
@@ -1679,14 +1983,17 @@ function App() {
                   <p>
                     Download all {allReadings.length} reading sessions across{" "}
                     {journals.length} journals as a readable JSON file,
-                    including journal names, dates, passages, and notes.
+                    including empty and archived journals, dates, passages, and
+                    notes. View filters do not limit the backup; Trash is
+                    excluded until restored.
                   </p>
                   <button
                     className="primary"
                     onClick={exportData}
                     disabled={!storageReady || exporting}
                   >
-                    Export all journals <Download size={15} />
+                    {exporting ? "Exporting…" : "Export all journals"}{" "}
+                    <Download size={15} />
                   </button>
                   <p>
                     Initiating a download does not confirm the file was
@@ -1705,9 +2012,11 @@ function App() {
                   </p>
                   <button
                     className="secondary"
+                    disabled={!storageReady || importing || saving}
                     onClick={() => fileRef.current?.click()}
                   >
-                    Choose a JSON file <Upload size={15} />
+                    {importing ? "Reading backup…" : "Choose a JSON file"}{" "}
+                    <Upload size={15} />
                   </button>
                 </section>
               </div>
@@ -1876,7 +2185,7 @@ function App() {
           {savedReading &&
             allReadings.some((r) => r.id === savedReading.id) &&
             (toast.startsWith("Reading saved") ||
-              toast === "Reading updated.") && (
+              toast.startsWith("Reading updated")) && (
               <button
                 onClick={() => {
                   setSample(false);
@@ -1898,39 +2207,56 @@ function App() {
             )}
         </div>
       )}
-      {modal && (
+      {mapDisplay && (
         <Dialog
-          title={editing ? "Edit your reading" : "Log a reading"}
-          onClose={() => setModal(false)}
+          title="Map display"
+          initialFocus="heading"
+          onClose={() => setMapDisplay(false)}
         >
-          <label className="field-label">
-            Recording in
-            <select
-              aria-label="Recording journal"
-              value={editing?.journalId || recordJournalId}
-              disabled={!!editing}
-              onChange={(e) => setRecordJournalId(e.target.value)}
-            >
-              {journals
-                .filter((j) => !j.archived || j.id === editing?.journalId)
-                .map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.name}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <form onSubmit={saveReading}>
+          <MapDisplayControls
+            metric={metric}
+            layout={layout}
+            zoom={zoom}
+            setMetric={setMetric}
+            setLayout={setLayout}
+            setZoom={setZoom}
+          />
+          <p>
+            Cell size changes the verse marks. Browser zoom remains available.
+            Book and chapter structure appears during inspection.
+          </p>
+          <button className="primary" onClick={() => setMapDisplay(false)}>
+            Done
+          </button>
+        </Dialog>
+      )}
+      {modal && (
+        <CaptureSurface
+          title={editing ? "Edit your reading" : "Log a reading"}
+          onClose={closeCapture}
+          busy={saving}
+          origin={captureOrigin.current}
+        >
+          <form onSubmit={saveReading} noValidate aria-busy={saving}>
             <label className="field-label">
               Passage or passages
               <input
                 data-initial-focus
+                readOnly={saving}
+                id="reading-passage"
+                aria-invalid={!!formError && !parsed.ranges.length}
+                aria-describedby={`passage-help ${input ? "passage-preview" : ""} ${formError ? "reading-error" : ""}`}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  setFormError("");
+                }}
                 placeholder="e.g. Romans 8:1–17; Psalm 23"
               />
             </label>
-            <small className="field-help">Try John 3:16 or Psalm 23.</small>
+            <small id="passage-help" className="field-help">
+              Try John 3:16 or Psalm 23.
+            </small>
             <details className="reference-examples">
               <summary>More reference examples</summary>
               <small className="field-help">
@@ -1941,7 +2267,7 @@ function App() {
             </details>
             {input && (
               <div
-                role={parsed.error ? "alert" : "status"}
+                id="passage-preview"
                 className={
                   parsed.error ? "parse-preview invalid" : "parse-preview"
                 }
@@ -1976,15 +2302,43 @@ function App() {
               Reading date
               <input
                 type="date"
+                disabled={saving}
+                id="reading-date"
+                aria-invalid={
+                  !!formError &&
+                  (!validCalendarDate(date) || date > dateLocal())
+                }
+                aria-describedby={formError ? "reading-error" : undefined}
                 value={date}
                 max={dateLocal()}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setFormError("");
+                }}
                 required
               />
             </label>
             <label className="field-label">
+              Recording in
+              <select
+                aria-label="Recording journal"
+                value={editing?.journalId || recordJournalId}
+                disabled={!!editing || saving}
+                onChange={(e) => setRecordJournalId(e.target.value)}
+              >
+                {journals
+                  .filter((j) => !j.archived || j.id === editing?.journalId)
+                  .map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="field-label">
               Notes <span>optional</span>
               <textarea
+                readOnly={saving}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Anything you’d like to remember…"
@@ -1992,7 +2346,7 @@ function App() {
               />
             </label>
             {formError && (
-              <p className="inline-error" role="alert">
+              <p id="reading-error" className="inline-error" role="alert">
                 {formError}
               </p>
             )}
@@ -2000,93 +2354,80 @@ function App() {
               <button
                 type="button"
                 className="secondary"
-                onClick={() => setModal(false)}
+                disabled={saving}
+                onClick={closeCapture}
               >
                 Cancel
               </button>
               <button
                 className="primary"
-                disabled={saving || !parsed.ranges.length}
+                disabled={
+                  saving ||
+                  !storageReady ||
+                  !journals.some((j) => j.id === recordJournalId && !j.archived)
+                }
               >
                 {saving ? "Saving…" : editing ? "Save changes" : "Save reading"}
                 <Check size={16} />
               </button>
             </div>
             <div className="dialog-private">
-              <ShieldCheck size={12} /> Saved only on this device
+              <ShieldCheck size={12} /> Saved in this browser on this device
             </div>
-          </form>
-        </Dialog>
-      )}
-      {selected !== null && (
-        <Dialog title={reference(selected)} onClose={() => setSelected(null)}>
-          <div className="verse-detail">
-            <span className="eyebrow">VERSE READING HISTORY</span>
-            <strong>
-              {stats[selected].count} <small>recorded readings</small>
-            </strong>
-            <p>
-              {stats[selected].last
-                ? `Last read ${formatDate(stats[selected].last!)}`
-                : unfilteredStats[selected].count
-                  ? "No readings in this period."
-                  : "Never recorded in these journals."}
-            </p>
-            {stats[selected].first && (
-              <p className="muted">
-                First recorded {formatDate(stats[selected].first!)}
+            <button
+              type="button"
+              className="quiet"
+              disabled={saving}
+              onClick={() => {
+                draft.current = null;
+                setInput("");
+                setDate(dateLocal());
+                setNotes("");
+                setFormError("");
+                setModal(false);
+              }}
+            >
+              Discard draft
+            </button>
+            {error && (
+              <p className="inline-error" role="alert">
+                {error}
               </p>
             )}
-          </div>
-          <div className="verse-events">
-            {sorted
-              .filter((r) =>
-                r.ranges.some((q) => selected >= q.start && selected <= q.end),
-              )
-              .map((r) => (
-                <div key={r.id}>
-                  <span>{formatDate(r.startedAt)}</span>
-                  <small>
-                    {sample
-                      ? "Example data"
-                      : journals.find((j) => j.id === r.journalId)?.name}{" "}
-                    · {r.ranges.map(rangeLabel).join("; ")}
-                  </small>
-                </div>
-              ))}
-          </div>
-          <div className="dialog-actions">
-            <button
-              className="secondary"
-              onClick={() => {
-                const v = verses[selected];
-                setBook(String(v.book));
-                setChapter(String(v.chapter));
-                setScopeRange(null);
-                setSelected(null);
-                setPage("map");
-              }}
-            >
-              View chapter
-            </button>
-            <button
-              className="primary"
-              onClick={() => {
-                const text = reference(selected);
-                setSelected(null);
-                openLog(null, text);
-              }}
-            >
-              Log this verse <Plus size={15} />
-            </button>
-          </div>
+          </form>
+        </CaptureSurface>
+      )}
+      {importPreview && !importPlan && (
+        <Dialog
+          title="Review your import"
+          busy={saving || importChecking}
+          busyLabel={importChecking ? "Checking the latest data…" : "Merging…"}
+          onClose={() => setImportPreview(null)}
+        >
+          <p role="alert">{importPlanError}</p>
+          <p>
+            Restore an existing archived destination before adding readings.
+            Newly imported archives retain their history.
+          </p>
+          <button className="secondary" onClick={() => setImportPreview(null)}>
+            Cancel
+          </button>
         </Dialog>
       )}
       {importPreview && importPlan && (
         <Dialog
+          error={error}
+          busy={saving || importChecking}
+          busyLabel={importChecking ? "Checking the latest data…" : "Merging…"}
           title="Review your import"
-          onClose={() => setImportPreview(null)}
+          initialFocus="heading"
+          onClose={() => {
+            if (!saving && !importChecking) setImportPreview(null);
+          }}
         >
+          <p className="muted">{importName}</p>
+          {importMessage && <p role="status">{importMessage}</p>}
+
           <p className="dialog-intro">
             This file contains {importPreview.readings.length} readings across{" "}
             {importPreview.journals.length} journals. {importPlan.duplicates}{" "}
@@ -2096,9 +2437,7 @@ function App() {
             <Check size={18} />
             <div>
               <strong>File validated</strong>
-              <small>
-                Jot & Tittle v{importPreview.legacy ? "1" : "2"} · protestant-en
-              </small>
+              <small>Jot & Tittle v{importVersion} · protestant-en</small>
             </div>
           </div>
           {importPreview.legacy && (
@@ -2131,10 +2470,7 @@ function App() {
             ))}
           </div>
           {importPlan.renamedJournals.length > 0 && (
-            <p className="muted">
-              Separate journals with matching names receive an “imported” suffix
-              to keep their tracking separate.
-            </p>
+            <p className="muted">{importPlan.renamedJournals.join("; ")}</p>
           )}
           <p className="muted">
             Add {importPlan.addedReadings} readings and{" "}
@@ -2145,12 +2481,22 @@ function App() {
           <div className="dialog-actions">
             <button
               className="secondary"
+              disabled={saving || importChecking}
               onClick={() => setImportPreview(null)}
             >
               Cancel
             </button>
-            <button className="primary" disabled={saving} onClick={applyImport}>
-              Merge journals &amp; readings <Upload size={15} />
+            <button
+              className="primary"
+              disabled={
+                saving ||
+                importChecking ||
+                (!importPlan.addedReadings && !importPlan.addedJournals)
+              }
+              onClick={applyImport}
+            >
+              {saving ? "Merging…" : "Merge journals & readings"}{" "}
+              <Upload size={15} />
             </button>
           </div>
         </Dialog>
@@ -2158,15 +2504,33 @@ function App() {
 
       {conflict && (
         <Dialog
-          title="This reading changed elsewhere"
+          error={error}
+          busy={saving}
+          title={
+            conflict.kind === "journal-missing"
+              ? "Recording journal unavailable"
+              : "This reading changed elsewhere"
+          }
           onClose={() => setConflict(null)}
         >
           <p className="dialog-intro">
-            {describeConflict(conflict.kind)}
+            {conflict.kind === "journal-missing"
+              ? "The recording journal was removed or archived in another tab. Choose an active journal to save your draft as a new reading."
+              : describeConflict(conflict.kind)}
             {conflict.forDelete
               ? " The delete was not applied."
               : " Your draft is still here and has not been saved."}
           </p>
+          {!conflict.forDelete && (
+            <div className="conflict-draft">
+              <span className="eyebrow">Your draft</span>
+              <strong>{input}</strong>
+              <p>
+                {date} · {journals.find((j) => j.id === recordJournalId)?.name}
+              </p>
+              <p className="reading-notes">{notes || "No notes"}</p>
+            </div>
+          )}
           {conflict.stored && (
             <div className="conflict-remote">
               <span className="eyebrow">SAVED IN ANOTHER TAB</span>
@@ -2185,6 +2549,37 @@ function App() {
               reading” to keep your draft under a new ID.
             </p>
           )}
+          {!conflict.forDelete &&
+            (conflict.kind === "reading-deleted" ||
+              conflict.kind === "journal-missing") && (
+              <label className="field-label">
+                Save new reading in
+                <select
+                  value={
+                    journals.some(
+                      (j) => j.id === recordJournalId && !j.archived,
+                    )
+                      ? recordJournalId
+                      : ""
+                  }
+                  disabled={saving}
+                  onChange={(e) => setRecordJournalId(e.target.value)}
+                >
+                  <option value="">Choose an active journal</option>
+                  {journals
+                    .filter((j) => !j.archived)
+                    .map((j) => (
+                      <option key={j.id} value={j.id}>
+                        {j.name}
+                      </option>
+                    ))}
+                </select>
+                <small>
+                  The new reading gets a new ID. Deleted readings and
+                  unavailable journals are not recreated.
+                </small>
+              </label>
+            )}
           {conflict.kind === "reading-deleted" && conflict.forDelete && (
             <p className="muted">
               This reading is already gone. You can dismiss this message.
@@ -2209,15 +2604,22 @@ function App() {
                 Keep mine
               </button>
             )}
-            {!conflict.forDelete && conflict.kind === "reading-deleted" && (
-              <button
-                className="primary"
-                disabled={saving}
-                onClick={saveReadingAsNew}
-              >
-                Save as new reading
-              </button>
-            )}
+            {!conflict.forDelete &&
+              (conflict.kind === "reading-deleted" ||
+                conflict.kind === "journal-missing") && (
+                <button
+                  className="primary"
+                  disabled={
+                    saving ||
+                    !journals.some(
+                      (j) => j.id === recordJournalId && !j.archived,
+                    )
+                  }
+                  onClick={saveReadingAsNew}
+                >
+                  Save as new reading
+                </button>
+              )}
             {!conflict.forDelete && (
               <button
                 className="secondary"
@@ -2252,6 +2654,9 @@ function App() {
 
       {(confirmDelete || confirmReset) && (
         <Dialog
+          error={error}
+          busy={saving}
+          initialFocus="cancel"
           title={
             confirmDelete
               ? "Delete this reading?"
@@ -2276,6 +2681,7 @@ function App() {
           <div className="dialog-actions">
             <button
               className="secondary"
+              disabled={saving}
               onClick={() => {
                 setConfirmDelete(null);
                 setConfirmReset(false);
@@ -2298,6 +2704,8 @@ function App() {
       )}
       {transfer && (
         <Dialog
+          error={error}
+          busy={saving}
           title={transferMode === "copy" ? "Copy reading" : "Move reading"}
           onClose={() => setTransfer(null)}
         >
@@ -2314,6 +2722,7 @@ function App() {
           <label>
             Destination journal
             <select
+              disabled={saving}
               aria-label="Destination journal"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
@@ -2373,9 +2782,20 @@ function App() {
       )}
       {purgeEntry && (
         <Dialog
+          busy={saving}
+          error={trashError || error}
           title="Permanently delete readings"
+          initialFocus="cancel"
           onClose={() => setPurgeEntry(null)}
         >
+          <button
+            className="secondary"
+            data-initial-focus
+            disabled={saving}
+            onClick={() => setPurgeEntry(null)}
+          >
+            Cancel
+          </button>
           <p>
             Permanently remove {purgeEntry.readings.length} readings from Trash.
             This cannot be undone.
@@ -2403,6 +2823,9 @@ function App() {
       )}
       {deleteJournal && (
         <Dialog
+          error={error}
+          busy={saving}
+          initialFocus="cancel"
           title={`Delete journal “${deleteJournal.name}”`}
           onClose={() => setDeleteJournal(null)}
         >
@@ -2425,6 +2848,14 @@ function App() {
           >
             Export all journals
           </button>
+          <button
+            className="secondary"
+            data-initial-focus
+            disabled={saving}
+            onClick={() => setDeleteJournal(null)}
+          >
+            Cancel
+          </button>
           {deleteJournalError && <p role="alert">{deleteJournalError}</p>}
           <button
             className="danger"
@@ -2443,7 +2874,7 @@ function App() {
                   ),
                 );
                 setDeleteJournal(null);
-                setToast("Empty journal deleted.");
+                setToast(`Empty journal “${deleteJournal.name}” deleted.`);
               } catch (e) {
                 setDeleteJournalError(
                   e instanceof ConflictError
@@ -2459,30 +2890,10 @@ function App() {
           </button>
         </Dialog>
       )}
-      {readingDetail && (
-        <ReadingDetail
-          reading={readingDetail}
-          journalName={
-            sample
-              ? "Example data"
-              : journals.find((j) => j.id === readingDetail.journalId)?.name ||
-                "Journal"
-          }
-          editable={
-            !sample &&
-            !readOnly &&
-            !journals.find((j) => j.id === readingDetail.journalId)?.archived
-          }
-          onClose={() => setReadingDetail(null)}
-          onEdit={() => {
-            const r = readingDetail;
-            setReadingDetail(null);
-            openLog(r);
-          }}
-        />
-      )}
       {manageJournals && (
         <Dialog
+          error={error}
+          busy={saving}
           title="Manage journals"
           onClose={() => setManageJournals(false)}
         >
@@ -2491,6 +2902,7 @@ function App() {
             before changing readings.
           </p>
           <button
+            disabled={saving}
             className="secondary"
             onClick={() => {
               setManageJournals(false);
@@ -2499,12 +2911,35 @@ function App() {
           >
             Create a journal
           </button>
+          {journalError && (
+            <div>
+              <p role="alert">{journalError}</p>
+              <button
+                className="secondary"
+                disabled={saving}
+                onClick={async () => {
+                  try {
+                    const state = await repository.load();
+                    applyState(state);
+                    setJournalError("");
+                    setJournalConflict(null);
+                    setJournalMissing(false);
+                  } catch (e) {
+                    setJournalError((e as Error).message);
+                  }
+                }}
+              >
+                Reload journals
+              </button>
+            </div>
+          )}
           {journals.map((j) => (
             <div key={j.id}>
               <strong>
                 {j.name} {j.archived ? "(archived)" : "(active)"}
               </strong>
               <button
+                disabled={saving}
                 onClick={() => {
                   setManageJournals(false);
                   openJournalEditor(j);
@@ -2514,6 +2949,7 @@ function App() {
               </button>
               {!j.archived && (
                 <button
+                  disabled={saving}
                   onClick={() => {
                     setManageJournals(false);
                     setResetJournal(j);
@@ -2530,6 +2966,7 @@ function App() {
               )}
               {j.id !== DEFAULT_JOURNAL_ID && (
                 <button
+                  disabled={saving}
                   onClick={() => {
                     setManageJournals(false);
                     setDeleteJournalError("");
@@ -2541,6 +2978,7 @@ function App() {
               )}
               {j.archived && (
                 <button
+                  disabled={saving}
                   onClick={() => {
                     setArchivedViewId(j.id);
                     setManageJournals(false);
@@ -2574,6 +3012,8 @@ function App() {
       )}
       {journalDialog && (
         <Dialog
+          error={error}
+          busy={saving}
           title={journalEditing ? "Rename journal" : "Create a journal"}
           onClose={() => setJournalDialog(false)}
         >
@@ -2582,10 +3022,14 @@ function App() {
               ? "Change the name while keeping every reading and its history."
               : "Give a different kind of reading its own space. Each journal tracks verses independently."}
           </p>
-          <form onSubmit={saveJournal}>
+          <form onSubmit={saveJournal} noValidate>
             <label className="field-label">
               Journal name
               <input
+                id="journal-name"
+                aria-invalid={!!journalError}
+                aria-describedby={journalError ? "journal-error" : undefined}
+                readOnly={saving}
                 value={journalName}
                 onChange={(e) => {
                   setJournalName(e.target.value);
@@ -2601,6 +3045,7 @@ function App() {
                 {["Sermons", "Small Group", "Memorization"].map((name) => (
                   <button
                     type="button"
+                    disabled={saving}
                     key={name}
                     onClick={() => {
                       setJournalName(name);
@@ -2613,21 +3058,101 @@ function App() {
               </div>
             )}
             {journalError && (
-              <p className="inline-error" role="alert">
+              <p id="journal-error" className="inline-error" role="alert">
                 {journalError}
               </p>
             )}
+            {journalConflict && (
+              <section className="conflict-remote">
+                <h3>Journal saved in another tab</h3>
+                <p>
+                  {journalConflict.name} ·{" "}
+                  {journalConflict.archived ? "Archived" : "Active"}
+                </p>
+                <p>Your intended name: {journalName}</p>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={saving}
+                  onClick={async () => {
+                    try {
+                      const latest = await repository.load();
+                      applyState(latest);
+                      const j = latest.journals.find(
+                        (j) => j.id === journalEditing?.id,
+                      );
+                      if (!j) {
+                        setJournalMissing(true);
+                        setJournalConflict(null);
+                        setJournalError(
+                          "This journal was deleted. Choose another journal.",
+                        );
+                        return;
+                      }
+                      setJournalEditing(j);
+                      setJournalName(j.name);
+                      setJournalConflict(null);
+                      setJournalError("");
+                    } catch (e) {
+                      setJournalError((e as Error).message);
+                    }
+                  }}
+                >
+                  Reload saved journal
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={saving}
+                  onClick={async () => {
+                    try {
+                      const latest = await repository.load();
+                      applyState(latest);
+                      const j = latest.journals.find(
+                        (j) => j.id === journalEditing?.id,
+                      );
+                      if (!j) {
+                        setJournalMissing(true);
+                        setJournalConflict(null);
+                        setJournalError(
+                          "This journal was deleted. Your name will not recreate it.",
+                        );
+                        return;
+                      }
+                      if (j.updatedAt !== journalConflict.updatedAt) {
+                        setJournalConflict(j);
+                        setJournalError(
+                          "The journal changed again. Review the latest version.",
+                        );
+                        return;
+                      }
+                      setJournalEditing(j);
+                      setJournalConflict(null);
+                      setJournalError(
+                        "Review your intended name and choose Save name to apply it to this latest journal.",
+                      );
+                    } catch (e) {
+                      setJournalError((e as Error).message);
+                    }
+                  }}
+                >
+                  Keep my intended name
+                </button>
+              </section>
+            )}
+
             <div className="dialog-actions">
               <button
                 type="button"
                 className="secondary"
+                disabled={saving}
                 onClick={() => setJournalDialog(false)}
               >
                 Cancel
               </button>
               <button
                 className="primary"
-                disabled={!journalName.trim() || saving}
+                disabled={saving || journalMissing || !!journalConflict}
               >
                 {saving
                   ? "Saving…"
@@ -2642,6 +3167,9 @@ function App() {
       )}
       {about && (
         <Dialog
+          error={error}
+          busy={saving}
+          initialFocus="heading"
           title="A verse-level map of your reading."
           onClose={() => setAbout(false)}
         >

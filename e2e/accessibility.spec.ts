@@ -20,10 +20,13 @@ test("text inspection exposes exact metrics and returns focus", async ({
   });
   await trigger.focus();
   await trigger.press("Enter");
-  const dialog = page.getByRole("dialog", { name: "John 3:16", exact: true });
+  const dialog = page.getByRole("complementary", {
+    name: "John 3:16",
+    exact: true,
+  });
   await expect(dialog).toContainText("1 recorded readings");
   await expect(dialog).toContainText("Oct 5, 2026");
-  await expect(page.locator("main")).toHaveAttribute("inert", "");
+  await expect(page.locator("main")).not.toHaveAttribute("inert", "");
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
@@ -37,18 +40,25 @@ test("keyboard map navigation keeps the last verse visible", async ({
     .getByRole("button", { name: "Explore my empty map", exact: true })
     .click();
   await page.getByRole("button", { name: /Map display/ }).click();
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  const canvas = page.getByRole("img", { name: /verse map/ });
+  await page
+    .getByRole("button", { name: "Increase cell size", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Increase cell size", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  const canvas = page.getByRole("group", { name: /verse map,/ });
   await canvas.focus();
-  await canvas.press("End");
-  await expect(page.locator(".map-tooltip")).toContainText("Revelation 22:21");
+  await canvas.press("Control+End");
+  await expect(page.locator(".r2-map-preview")).toContainText(
+    "Revelation 22:21",
+  );
   await expect
     .poll(() => page.locator(".map-scroll").evaluate((el) => el.scrollTop))
     .toBeGreaterThan(0);
   await canvas.press("Enter");
   await expect(
-    page.getByRole("dialog", { name: "Revelation 22:21", exact: true }),
+    page.getByRole("complementary", { name: "Revelation 22:21", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(canvas).toBeFocused();
