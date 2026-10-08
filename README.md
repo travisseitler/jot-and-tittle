@@ -1,6 +1,6 @@
 # Jot & Tittle
 
-A verse-by-verse map of your Bible reading. Version 0.3.0.
+A verse-by-verse map of your Bible reading. Version 0.3.1.
 
 Jot & Tittle helps you see where you have been in Scripture: which passages you
 have read, how recently you read them, and which ones you return to most often.
