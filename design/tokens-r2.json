@@ -1,0 +1,364 @@
+{
+  "revision": "r2",
+  "status": "working design specification; not user-approved",
+  "tokens": {
+    "surface.page": {
+      "type": "color",
+      "value": "#F7F5EF"
+    },
+    "surface.panel": {
+      "type": "color",
+      "value": "#FFFEF9"
+    },
+    "surface.disabled": {
+      "type": "color",
+      "value": "#EEF0E7"
+    },
+    "surface.error": {
+      "type": "color",
+      "value": "#FFF1ED"
+    },
+    "text.primary": {
+      "type": "color",
+      "value": "#29392E"
+    },
+    "text.secondary": {
+      "type": "color",
+      "value": "#5E6A5B"
+    },
+    "text.onAction": {
+      "type": "color",
+      "value": "#FFFEF9"
+    },
+    "text.disabled": {
+      "type": "color",
+      "value": "#5E6A5B"
+    },
+    "action.primary": {
+      "type": "color",
+      "value": "#365640"
+    },
+    "action.hover": {
+      "type": "color",
+      "value": "#294632"
+    },
+    "action.pressed": {
+      "type": "color",
+      "value": "#233C2C"
+    },
+    "action.disabled": {
+      "type": "color",
+      "value": "#EEF0E7"
+    },
+    "selection.surface": {
+      "type": "color",
+      "value": "#E7EEE3"
+    },
+    "border.subtle": {
+      "type": "color",
+      "value": "#DCE1D5"
+    },
+    "border.control": {
+      "type": "color",
+      "value": "#7B8B77"
+    },
+    "focus.ring": {
+      "type": "color",
+      "value": "#29392E"
+    },
+    "focus.separator": {
+      "type": "color",
+      "value": "#FFFEF9"
+    },
+    "status.error": {
+      "type": "color",
+      "value": "#963F35"
+    },
+    "status.errorHover": {
+      "type": "color",
+      "value": "#7F322B"
+    },
+    "status.errorPressed": {
+      "type": "color",
+      "value": "#692720"
+    },
+    "overlay.color": {
+      "type": "color",
+      "value": "#29392E"
+    },
+    "space.4": {
+      "type": "spacing",
+      "value": "4"
+    },
+    "space.8": {
+      "type": "spacing",
+      "value": "8"
+    },
+    "space.12": {
+      "type": "spacing",
+      "value": "12"
+    },
+    "space.16": {
+      "type": "spacing",
+      "value": "16"
+    },
+    "space.24": {
+      "type": "spacing",
+      "value": "24"
+    },
+    "space.32": {
+      "type": "spacing",
+      "value": "32"
+    },
+    "space.48": {
+      "type": "spacing",
+      "value": "48"
+    },
+    "type.12": {
+      "type": "fontSizes",
+      "value": "12"
+    },
+    "type.14": {
+      "type": "fontSizes",
+      "value": "14"
+    },
+    "type.16": {
+      "type": "fontSizes",
+      "value": "16"
+    },
+    "type.18": {
+      "type": "fontSizes",
+      "value": "18"
+    },
+    "type.20": {
+      "type": "fontSizes",
+      "value": "20"
+    },
+    "type.24": {
+      "type": "fontSizes",
+      "value": "24"
+    },
+    "type.26": {
+      "type": "fontSizes",
+      "value": "26"
+    },
+    "type.30": {
+      "type": "fontSizes",
+      "value": "30"
+    },
+    "type.32": {
+      "type": "fontSizes",
+      "value": "32"
+    },
+    "radius.control": {
+      "type": "borderRadius",
+      "value": "8"
+    },
+    "radius.panel": {
+      "type": "borderRadius",
+      "value": "12"
+    },
+    "radius.data": {
+      "type": "borderRadius",
+      "value": "0"
+    },
+    "size.control": {
+      "type": "dimension",
+      "value": "44"
+    },
+    "size.primary": {
+      "type": "dimension",
+      "value": "48"
+    },
+    "size.field": {
+      "type": "dimension",
+      "value": "48"
+    },
+    "size.icon": {
+      "type": "dimension",
+      "value": "20"
+    },
+    "size.mapCell": {
+      "type": "dimension",
+      "value": "4"
+    },
+    "size.mapStride": {
+      "type": "dimension",
+      "value": "5"
+    },
+    "size.sidebar": {
+      "type": "dimension",
+      "value": "192"
+    },
+    "size.detail": {
+      "type": "dimension",
+      "value": "328"
+    },
+    "overlay.opacity": {
+      "type": "opacity",
+      "value": "0.18"
+    }
+  },
+  "fonts": {
+    "operational": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    "editorial": "Georgia, \"Times New Roman\", serif",
+    "penpotProxies": {
+      "operational": "Inter",
+      "editorial": "Source Serif 4"
+    }
+  },
+  "roles": {
+    "wordmark": {
+      "family": "editorial",
+      "size": 24,
+      "lineHeight": 32,
+      "weight": 400
+    },
+    "page.desktop": {
+      "family": "editorial",
+      "size": 32,
+      "lineHeight": 40,
+      "weight": 400
+    },
+    "page.tablet": {
+      "family": "editorial",
+      "size": 30,
+      "lineHeight": 38,
+      "weight": 400
+    },
+    "page.phone": {
+      "family": "editorial",
+      "size": 26,
+      "lineHeight": 34,
+      "weight": 400
+    },
+    "section.editorial": {
+      "family": "editorial",
+      "size": 24,
+      "lineHeight": 32,
+      "weight": 400
+    },
+    "section.utility": {
+      "family": "operational",
+      "size": 20,
+      "lineHeight": 28,
+      "weight": 600
+    },
+    "passage.heading": {
+      "family": "editorial",
+      "size": 24,
+      "lineHeight": 32,
+      "weight": 400
+    },
+    "history.passage": {
+      "family": "operational",
+      "size": 18,
+      "lineHeight": 27,
+      "weight": 600
+    },
+    "body": {
+      "family": "operational",
+      "size": 16,
+      "lineHeight": 26.4,
+      "weight": 400
+    },
+    "field": {
+      "family": "operational",
+      "size": 16,
+      "lineHeight": 24,
+      "weight": 400
+    },
+    "control": {
+      "family": "operational",
+      "size": 14,
+      "lineHeight": 20,
+      "weight": 600
+    },
+    "metadata": {
+      "family": "operational",
+      "size": 14,
+      "lineHeight": 20,
+      "weight": 400
+    },
+    "chart.caption": {
+      "family": "operational",
+      "size": 12,
+      "lineHeight": 18,
+      "weight": 400
+    },
+    "summary": {
+      "family": "operational",
+      "size": 24,
+      "lineHeight": 32,
+      "weight": 600
+    }
+  },
+  "responsive": {
+    "phoneMaxExclusive": 768,
+    "tabletMin": 768,
+    "desktopMin": 1024,
+    "detailPaneMin": 1248,
+    "gutters": {
+      "phone": 16,
+      "tablet": 24,
+      "desktop": 32
+    },
+    "navigation": {
+      "phone": "bottom",
+      "tablet": "top",
+      "desktop": "sidebar"
+    },
+    "detailGap": 24,
+    "minimumMapWithPane": 640
+  },
+  "motion": {
+    "feedbackMs": 120,
+    "overlayMs": 180,
+    "easing": "cubic-bezier(.2, 0, 0, 1)",
+    "reduced": "no animated relocation or illustrative motion"
+  },
+  "layers": {
+    "content": 0,
+    "sticky": 10,
+    "navigation": 20,
+    "popover": 30,
+    "modal": 40,
+    "status": 50
+  },
+  "map": {
+    "defaultMetric": "combined",
+    "defaultLayout": "continuous",
+    "cellSizes": [4, 6, 8, 10, 12, 14],
+    "strideFormula": "cellSize + 1",
+    "fixedColumns": 160,
+    "unrecorded": "#E5E8E0",
+    "singleMetricPalette": [
+      "#E5E8E0",
+      "#D1DDBB",
+      "#B5CC8F",
+      "#91B669",
+      "#69964D",
+      "#467338",
+      "#294E29"
+    ],
+    "recencyBuckets": [
+      "365+ days",
+      "90\u2013364 days",
+      "30\u201389 days",
+      "7\u201329 days",
+      "1\u20136 days",
+      "Today / within 24 hours"
+    ],
+    "frequencyBuckets": [
+      "1 reading",
+      "2\u20134 readings",
+      "5\u20139 readings",
+      "10\u201324 readings",
+      "25\u201349 readings",
+      "50+ readings"
+    ],
+    "combinedHues": [28, 45, 63, 85, 110, 145],
+    "combinedLightness": [70, 60, 50, 41, 32, 24],
+    "combinedSaturationFormula": "46 + recencyIndex * 3 + frequencyIndex * 2"
+  }
+}

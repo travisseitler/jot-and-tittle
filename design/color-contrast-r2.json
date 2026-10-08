@@ -1,0 +1,109 @@
+{
+  "method": "WCAG opaque sRGB relative luminance; not a rendered conformance audit",
+  "pairs": [
+    {
+      "label": "Primary text/page",
+      "foreground": "#29392E",
+      "background": "#F7F5EF",
+      "ratio": 11.206,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Secondary text/page",
+      "foreground": "#5E6A5B",
+      "background": "#F7F5EF",
+      "ratio": 5.222,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "On-action/default",
+      "foreground": "#FFFEF9",
+      "background": "#365640",
+      "ratio": 8.117,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "On-action/hover",
+      "foreground": "#FFFEF9",
+      "background": "#294632",
+      "ratio": 10.314,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "On-action/pressed",
+      "foreground": "#FFFEF9",
+      "background": "#233C2C",
+      "ratio": 11.855,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Disabled text/surface",
+      "foreground": "#5E6A5B",
+      "background": "#EEF0E7",
+      "ratio": 4.949,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Error text/error surface",
+      "foreground": "#963F35",
+      "background": "#FFF1ED",
+      "ratio": 6.229,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Destructive/default",
+      "foreground": "#FFFEF9",
+      "background": "#963F35",
+      "ratio": 6.798,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Destructive/hover",
+      "foreground": "#FFFEF9",
+      "background": "#7F322B",
+      "ratio": 8.689,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Destructive/pressed",
+      "foreground": "#FFFEF9",
+      "background": "#692720",
+      "ratio": 10.879,
+      "target": 4.5,
+      "meetsTarget": true
+    },
+    {
+      "label": "Control border/panel",
+      "foreground": "#7B8B77",
+      "background": "#FFFEF9",
+      "ratio": 3.585,
+      "target": 3,
+      "meetsTarget": true
+    },
+    {
+      "label": "Control border/page",
+      "foreground": "#7B8B77",
+      "background": "#F7F5EF",
+      "ratio": 3.32,
+      "target": 3,
+      "meetsTarget": true
+    },
+    {
+      "label": "Subtle border/panel",
+      "foreground": "#DCE1D5",
+      "background": "#FFFEF9",
+      "ratio": 1.318,
+      "target": null,
+      "meetsTarget": null
+    }
+  ]
+}

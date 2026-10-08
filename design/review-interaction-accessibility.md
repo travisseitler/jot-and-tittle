@@ -1,0 +1,103 @@
+# Interaction and accessibility review
+
+2026-10-08 · Proposed implementation requirements and research protocol. No app code changed by this review. Source inspection is not browser or assistive-technology verification. No participants were recruited and no user-testing results are claimed.
+
+## Assessment of current source
+
+Reviewed `Heatmap.tsx`, `Dialog.tsx`, `ReadingDetail.tsx`, `MapDisplayControls.tsx`, `ReadingViewControls.tsx`, `layout.ts`, capture/import/detail sections in `main.tsx`, and `visual-design-guidelines.md`.
+
+- `Heatmap` currently exposes an interactive canvas as `role="img"` with one Tab stop, arrow handling and scope-wide Home/End. The image name and single-verse inspector are useful beginnings, but do not expose the whole dataset for browsing or comparison. A 31,102-cell chart needs a practical equivalent beyond an image name or one-at-a-time lookup.
+- The map tooltip currently uses `role="status"` and can change on every pointer movement. Do not announce incidental hover repeatedly. Mouse click opens detail immediately; the proposed touch behavior below separates preview from opening.
+- Current text inspection provides reference, count and last date, plus previous/next buttons. Search can choose a verse outside the visual scope; the next design must explicitly synchronize scope or reject an outside-scope reference without silently presenting mismatched data.
+- Metric controls are native buttons with `aria-pressed`; keep this valid pattern. Flow/Fixed also use pressed buttons but lack a named enclosing group. Add a visible/accessible layout group name and concise explanations available without hover.
+- `Dialog` provides a labeled modal, Escape, initial focus, inert siblings, focus wrapping and restoration. These are appropriate intentions, not proof of complete behavior. Verify nested backdrop ancestry, hidden/disabled controls, initial-focus visibility, and restoration if the trigger disappears. Ensure Tab cannot escape when initial focus is the dialog container or no eligible control exists. Direct backdrop dismissal can discard capture input; the draft-preservation rule below applies.
+- `ReadingDetail` is always a modal today. The proposed desktop pane and phone detail route require explicit focus and return behavior; existing modal behavior does not establish them.
+- Capture preserves form values after write failures and focuses invalid passage/date on submit. Parsing announces alerts during typing; visible labels are not linked to preview/error text with `aria-describedby`, and invalid fields lack `aria-invalid`. Replace noisy per-keystroke announcements with the validation sequence below.
+- View filtering uses a draft form with Apply/Cancel and Escape restoration. Keep draft/apply separation; add invalid-field associations and result announcements. Current chip removal can remove the focused element: restore focus to the next chip or the View readings trigger.
+- Import validates before opening a merge preview, resets file input, and distinguishes download initiation from verified file saving. Add explicit reading/merging/failure states and preview focus rules. Do not change these cautious backup semantics.
+
+## Dense map: primary equivalent and optional navigator
+
+The canvas remains the visual continuous canonical sequence. Do not create 31,102 Tab stops, require precise cell taps, assign `role="application"`, or present a fabricated ARIA grid with no corresponding interactive cells. The proposed map is accompanied by a first-class **Text view**; users can choose it without interacting with the canvas. Its data and actions must be fully equivalent before the visual canvas is hidden from the accessibility tree.
+
+### Text view
+
+1. Put the Map/Text view control beside the map heading. Use a labeled pair of native pressed buttons, or a properly implemented radio group. Do not label these tabs unless tab semantics and keyboard behavior are fully implemented. Persist the selected presentation locally. Text view is ordinary visible content, not screen-reader-only content.
+2. Use one shared query/model for canvas, legend, summary, Text view and passage detail. It includes selected journals, inclusive date period, canonical/book/chapter/passage scope, metric and calculation date. Viewing never changes the recording destination. Show this context above both presentations.
+3. Desktop Text view uses a native semantic table: caption naming scope; column headers with `scope="col"`; passage references as row headers with `scope="row"`. Columns are reference, recorded count, exact last reading date, and notes/action. Each reference has a normal **Inspect [reference]** button or link. On phones use an ordered list with the same explicitly labeled fields and action. Render only one active representation in the accessibility tree.
+4. Initial pagination is 12 rows on desktop and 4 on phone. These are design defaults, not research-validated limits. Every in-scope verse is reachable, including zero-count verses, in canonical order. Provide Previous/Next page, page position, shown range and total. Keep these controls present at boundaries with a disabled state. Allow reference jump and book/chapter scope so thousands of pages are not the only way to locate a verse.
+5. **Find passage** accepts a verse or range, using the same parser as capture. It navigates within the active journal/date/scope model; it does not reset filters. A verse in scope jumps to its page and sets the selected locator. A range in scope yields its canonical rows. If partly/outside scope, explain the mismatch and offer an explicit **Change passage scope** action before changing it. A zero-count verse remains a valid result. The error must not imply it is absent from the Bible.
+6. Report integer counts and an exact calendar date, or **No readings in this view**. When relevant show separately **Last recorded across all dates: [date]** to distinguish filtered zero from never recorded. Explain whether notes are within active filters. Never replace a missing date with an invented date or a recency bucket alone.
+7. Notes cells show a clear note count and readable preview with **View notes**; detail exposes the complete note text for all matching records, passage/date/journal attribution and actions. An empty notes cell says **No notes in this view**. Do not duplicate one multi-verse record in detail totals.
+8. Page changes preserve focus on the initiating pagination button and announce one concise result, e.g. **Showing verses 13–24 of 56, John 3, Personal journal, all time.** A Find action keeps focus in the search workflow, announces the match and offers a normal Inspect action; do not focus a hidden canvas. Reference links, pagination and controls are regular Tab stops; cells containing only text are not.
+9. Supply plain-language metric/legend descriptions, including frequency and recency bucket boundaries and calculation date. Combined encoding has 36 combinations plus neutral; retain exact data in Text view rather than expecting the reader to infer it from hue. Preserve the white/dark selection locator without altering metric fills.
+10. Both visual canvases may use `aria-hidden="true"` and no `tabindex` only once equivalent adjacent text functionality exists. The surrounding labeled section describes what the map represents and names Text view. A label alone is not the equivalent.
+
+### Optional keyboard map navigator
+
+This is a convenience for keyboard users who want spatial navigation; Text view remains the dependable semantic path. Do not promise that arrow shortcuts will work in every screen-reader browse mode.
+
+- Use a separately named focusable group, e.g. **Navigate verse map**, described by visible instructions. The canvas itself stays hidden. One Tab stop enters; normal Tab/Shift+Tab leave without interception. Always provide standard Previous verse, Next verse and Inspect buttons outside this group.
+- Left/Right move one canonical verse; Up/Down move by the actual rendered column count. Fixed layout uses its real columns, not the number currently visible through a scroll viewport. Clamp to scope. Home/End move to the first/last in-scope cell of the current rendered row; Ctrl+Home/Ctrl+End move to scope start/end. Partial first/last rows use in-scope endpoints. Enter opens current detail; Escape closes detail/preview and restores navigator focus. Do not intercept these keys while typing into any input or textarea.
+- Navigation updates a stable visible text readout of reference/count/exact date and a persistent locator. Keep only the located cell in view; do not scroll the whole document unnecessarily. Announce deliberate keyboard position changes once, politely, with coalescing for key repeat. Pointer hover does not update the live region. Reset/clamp the located verse predictably when scope changes, and announce the new scope rather than every cell.
+
+## Touch, focus and detail
+
+- Normal vertical/horizontal scrolling never logs, opens details or commits a selection. Treat pointer movement/cancellation as a scroll gesture. A completed stationary tap on a cell previews its reference/count/date with a clear **Inspect passage** action; the tiny cell is not the sole entry point. Capture always requires the labeled logging form and explicit Save.
+- Retain browser pinch zoom and default scrolling. Do not use `user-scalable=no`, block touch zoom globally, or consume all map touch gestures. Map zoom buttons describe **cell size**, distinct from browser zoom. Use at least 44×44px control footprints as a product comfort goal; tiny data marks are served by the equivalent reference controls.
+- A pointer-hover preview must be dismissible, hoverable and persistent while needed if it obscures content. Escape dismisses it. Preview content has no hidden-only action; touch and keyboard have visible equivalents. Avoid tooltips as the only instruction.
+- Desktop detail is a named complementary pane 320–400px wide only when the map retains at least 640px. It is nonmodal: no `aria-modal`, inert background or focus trap. Opening from an explicit Inspect action moves focus to its reference heading (`tabindex="-1"`); Close restores the originating row/control or a stable replacement. Arrow preview does not steal focus.
+- Phone/narrow detail is a separate view with a labeled **Back to map/Text view** action. Focus the passage heading after entry and restore the original control and map/page scroll position on Back. Retain journal, date scope, selected verse, search and page. Native browser Back should agree with in-app Back if routing is implemented. Never claim a history entry was added if the app only swaps local state.
+- Form/settings dialogs remain genuinely modal: titled, focus contained, background inert, Close and Escape, meaningful initial focus and restoration. Long explanatory/import dialogs start on a focusable heading so content is not skipped. Confirmation dialogs start with Cancel, not irreversible action. For an empty modal, keep Tab on the dialog itself. Do not hide a focused element with `aria-hidden`.
+- Keep visible focus on every interaction, including pressed controls and dark buttons. Fixed navigation, sticky headers, virtual keyboard and status overlays must not conceal focused fields/actions. Use safe-area spacing and scroll margins.
+
+## Input, edit, import and navigation rules
+
+- Use visible labels, appropriate native input types and normal text editing keys. Help text, parsing preview and errors are associated through stable IDs/`aria-describedby`; mark the actual invalid field with `aria-invalid="true"`. Do not rely on placeholder, color or icon alone.
+- Parse visibly while typing but do not announce every incomplete fragment. Announce a concise successful preview after a pause or on blur; announce errors on blur/submit, once per changed error. On invalid submit focus the first invalid field. Preserve passage, notes, date and journal. Never autosave a partial/invalid reference.
+- Plain Enter submits a single-line form; Enter in notes inserts a newline. Optional save shortcuts must be documented and must not replace normal Save. Destination journal is explicit and independent from view filters. A disabled Save state needs an adjacent reason.
+- While saving, preserve form geometry, show **Saving…**, disable duplicate submission, and mark the relevant form busy. Announce success only after local persistence succeeds, naming passage/destination and whether active filters hide it. Errors remain until corrected or dismissed; a short-lived toast is not the only recovery path.
+- Closing a capture/edit form preserves its unsaved draft for reopening during the session. **Discard draft** is explicit. Recoverable storage errors keep edits and offer retry/backup; optimistic conflict resolution keeps both attempted and stored versions available and requires an explicit choice to replace/reload/save as new.
+- Edit starts with original values and a clear **Save changes** action; cancelling changes no stored record. Move/copy/delete name the record and destination. Recoverable deletion offers Undo and Trash access; permanent deletion names scope/count and requires confirmation. Return focus to a surviving history item or heading after deletion, not a detached trigger.
+- Import: labeled file control; cancelled chooser does nothing; **Reading backup…** while parsing; malformed/version/canon failures explain next steps without altering data. Preview reports added/duplicate/conflicting records, journals and name changes. Confirm with **Merge [count] readings**; disable duplicate merge, preserve preview on failure, announce completion after persistence. Reset file input so the same corrected file can be selected again. Escape/Cancel abandons preview, not existing data. Export says **Download initiated; check the saved file**, not verified backup success.
+- Navigation has a named landmark and visible labels. Use `aria-current="page"` for the current destination, stable DOM order and a skip-to-main link. After explicit page navigation, focus its heading and retain appropriate view state. Do not move focus on ordinary filter, metric or viewport changes. Disclosure triggers expose `aria-expanded` and `aria-controls`; inline panels do not trap focus. Apply/Cancel filters return focus to the trigger and announce applied scope once.
+- Keep a persistent polite status region for save/import/view results and a separate error strategy for actionable failure. Avoid simultaneous duplicate announcements from preview, tooltip, toast and inspector. Loading keeps previous data explicitly labeled **Updating…** rather than silently showing stale data as current.
+
+## Acceptance checklist and planned user testing
+
+All items are requirements to verify in the implementation, not completed checks:
+
+- Keyboard-only capture, filters, Text view search/paging, zero-record inspection, note reading/editing, dialog dismissal, import/export and recovery work without pointer precision or a trap.
+- Accessibility tree exposes accurate names/roles/states, table headers or phone field labels; canvases are hidden only with complete equivalent data/actions. No 31k focus stops.
+- Manual VoiceOver/Safari and NVDA/Firefox or Chrome journeys verify announcements, modal boundaries, tables/lists, error associations and return focus. Record actual versions/results; add mobile VoiceOver/TalkBack if those are supported targets.
+- Verify default/hover/pressed/disabled/focus/error contrast, color-vision simulations and locator over all 36 combined colors plus neutral. Exact dates/counts remain available without color.
+- Inspect 1440, 768, 390 and 320 CSS-pixel widths, 200% text size, 400% browser zoom, text-spacing overrides, reduced motion, long labels/notes, empty/filtered-zero states, virtual keyboard and safe areas. Reflow exception is local to essential map geometry; ordinary controls/prose must reflow.
+- Exercise pointer cancel, scrolling and pinch zoom. No gesture accidentally records or opens detail. Standard text controls offer equivalent actions.
+- Meaningful implementation tests: same query returns identical map/Text view/detail values including zeros and filter combinations; pagination has no missing/duplicated IDs; optional navigator correctly handles partial rows and scope clamps; malformed import/write failure makes no silent data change.
+
+Proposed formative study: recruit 5–8 actual or prospective returning readers, including phone-first, keyboard-only, low-vision and screen-reader users where feasible. This is a recruitment target, not completed research or a statistical proof. Use participant-chosen fictional notes and disposable test journals. Record success, assistance, time, misinterpretation and input loss separately; do not infer spiritual benefit from task speed.
+
+1. Log `John 3:16–18; Psalm 23` with a date and two-paragraph note. Success: one record with the recognized unique verses, correct destination/date, preserved note; no assistance and no accidental duplicate. Initial hypothesis: under 60 seconds excluding note composition.
+2. Under a specific date filter, find a zero-count verse and explain **No readings in this view** versus **Never recorded**. Success: correct distinction and exact active context without relying on cell color; under 90 seconds as a hypothesis.
+3. Inspect a passage, read its long note, edit it, then return. Success: correct note updated; reference/filter/page/scroll retained; focus returns to a useful origin. Test desktop pane and phone Back separately.
+4. Browse Text view by search and pagination, including the last verse of a scope. Success: identify count/date and reach detail without canvas use or thousands of Tab presses. Assistive technology is allowed and expected.
+5. Scroll and pinch-zoom the phone map, then inspect by reference. Success: no accidental logging/selection from scroll, preserved zoom access and a usable nonprecision path.
+6. Submit an invalid passage/date and encounter a simulated persistence failure. Success: participant identifies the field/recovery action and corrects or retries without re-entering unaffected input.
+7. Preview a backup with duplicates, cancel, then merge; recover a deleted record. Success: explains what changes, no change on Cancel, one merge, correct recovery. A corrupted backup changes no existing data.
+
+Any repeated task failure or inaccessible path blocks acceptance; record issues and retest affected journeys with the relevant user group. Treat time goals and default page sizes as hypotheses to revise, not approval gates already validated.
+
+## Verified standards references
+
+W3C Understanding pages explain criteria; the ARIA Authoring Practices Guide supplies implementation guidance. Neither source makes this app conformant. This review proposes WCAG 2.2 AA as the target, not an audited claim.
+
+- [Non-text content, 1.1.1](https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html): equivalent purpose supports the full Text view requirement.
+- [Keyboard, 2.1.1](https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html): functionality must have keyboard access; no specific custom shortcut is mandated.
+- [Modal dialog APG pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/): contained focus, Escape, meaningful initial focus and restoration guidance.
+- [Status messages, 4.1.3](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html): programmatically determinable status without requiring focus changes.
+- [Target size minimum, 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html): AA generally uses 24 CSS pixels with exceptions/spacing provisions. The 44px product goal is stronger; it is not the AA minimum.
+- [Reflow, 1.4.10](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html): 320 CSS-pixel equivalent width and a bounded exception for essential two-dimensional content.
+- [Focus not obscured minimum, 2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html): authored content must not completely hide the focused component; the product aims to leave its full target visible.
+- [Error identification, 3.3.1](https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html) and [Name, role, value, 4.1.2](https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html): identify erroneous input in text and expose control semantics accurately.
+
+Penpot Inter/Source Serif 4 are design proxies for the app's system sans-serif/Georgia roles. No exact rendering equivalence or user approval is implied. The metric colors and semantics remain unchanged by these interaction proposals.

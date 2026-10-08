@@ -1,0 +1,204 @@
+{
+  "revision": "r2",
+  "date": "2026-10-08",
+  "status": "working specification, not explicitly user-approved",
+  "fileId": "389359b9-41aa-8115-8008-c1dd1c742e50",
+  "versionLabel": "r2 \u00b7 final reviewed reference \u00b7 2026-10-08",
+  "boards": [
+    {
+      "id": "36b1b414-d388-8062-8008-c1de2f4dae9b",
+      "name": "D01 \u00b7 Map \u00b7 populated \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d01.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1de309b4662",
+      "name": "D02 \u00b7 Log reading \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d02.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1de315720a8",
+      "name": "D03 \u00b7 Selected passage and notes \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d03.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1de32d63c66",
+      "name": "D04 \u00b7 History and note detail \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d04.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1de7e0b9770",
+      "name": "D05 \u00b7 Text access \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d05.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1de7fbf0ebc",
+      "name": "D06 \u00b7 Filtered empty \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d06.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1ded7dd82b6",
+      "name": "M01 \u00b7 Map \u00b7 populated \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m01.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1ded852166c",
+      "name": "M02 \u00b7 Log reading \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m02.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1ded8d2f82a",
+      "name": "M03 \u00b7 Passage detail \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m03.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1ded949f7ec",
+      "name": "M04 \u00b7 History \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m04.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1deda2256bd",
+      "name": "M05 \u00b7 Text access \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m05.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df1cff935b",
+      "name": "M06 \u00b7 Capture validation \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m06.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df1d8f558d",
+      "name": "M07 \u00b7 First reading \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m07.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df1e131212",
+      "name": "M08 \u00b7 Combined color key \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m08.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df1f8ec441",
+      "name": "M09 \u00b7 Save confirmation \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m09.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df6a4479c3",
+      "name": "N01 \u00b7 Map \u00b7 narrow \u00b7 320",
+      "width": 320,
+      "height": 720,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/n01.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df6ad5313e",
+      "name": "T01 \u00b7 Map \u00b7 tablet \u00b7 768",
+      "width": 768,
+      "height": 1024,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/t01.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1df6c8e99f5",
+      "name": "C01 \u00b7 Components and interaction states",
+      "width": 1440,
+      "height": 1450,
+      "pageId": "36b1b414-d388-8062-8008-c1df6be0cb15",
+      "export": "references/r2/c01.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1e016902b79",
+      "name": "C02 \u00b7 Foundations and map palette",
+      "width": 1440,
+      "height": 1250,
+      "pageId": "36b1b414-d388-8062-8008-c1df6be0cb15",
+      "export": "references/r2/c02.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1e10b760051",
+      "name": "C03 \u00b7 Map access and input behavior",
+      "width": 1440,
+      "height": 1420,
+      "pageId": "36b1b414-d388-8062-8008-c1df6be0cb15",
+      "export": "references/r2/c03.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1e10e54e1c2",
+      "name": "D07 \u00b7 Display settings dialog \u00b7 1440",
+      "width": 1440,
+      "height": 1000,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/d07.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1e10f18989d",
+      "name": "M10 \u00b7 Display settings \u00b7 390",
+      "width": 390,
+      "height": 844,
+      "pageId": "389359b9-41aa-8115-8008-c1dd1c742e51",
+      "export": "references/r2/m10.png"
+    },
+    {
+      "id": "36b1b414-d388-8062-8008-c1e44d13de62",
+      "name": "C04 \u00b7 Extended states and long content",
+      "width": 1440,
+      "height": 1480,
+      "pageId": "36b1b414-d388-8062-8008-c1df6be0cb15",
+      "export": "references/r2/c04.png"
+    }
+  ],
+  "tokens": 49,
+  "variantGroups": 5,
+  "componentVariants": 22,
+  "prototypeLinks": 81,
+  "limitations": [
+    "Static representative compositions; no simulated parsing, persistence, counters or assistive technology.",
+    "Inter and Source Serif 4 proxy system sans and Georgia.",
+    "Synthetic illustrative records, no personal data.",
+    "Written state inventory governs omitted controls and unwired prototype actions.",
+    "Static r2 design reference, separate from implemented-app evidence in design/implementation-r2.md; assistive-technology and user studies remain unverified."
+  ]
+}
