@@ -125,3 +125,23 @@ Run `npm run format` to format the project, or `npm run format:check` to check i
 `npm install` enables the Husky pre-commit hook, which runs Prettier on staged
 files via lint-staged and stages the formatting changes automatically. Unsupported
 file types are skipped, and unstaged edits in partially staged files are preserved.
+
+## Pages deployment checks
+
+The Pages workflow runs an additional Chromium check against the assembled
+`_site/app/` output at `/jot-and-tittle/app/`. Desktop and mobile cases verify
+asset paths, the sample map, service-worker scope, offline reload, and saved
+reading persistence. Deployment requires these checks to pass.
+
+To check a local production app at the same path:
+
+```sh
+npm run build
+mkdir -p _site/app
+cp -R dist/. _site/app/
+npx playwright test --config=playwright.pages.config.ts
+```
+
+Require the `test` check from the Tests workflow for pull requests targeting
+`main`; it includes the full browser matrix. Also require the Pages workflow's
+`Pages app checks` check so project-path regressions prevent merging.

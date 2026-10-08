@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    name: Pages app checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,13 +38,29 @@ jobs:
           mkdir -p _site/app
           cp -R dist/. _site/app/
           cp LICENSE _site/app/LICENSE
+      - name: Install browser for project-path checks
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Verify assembled Pages app
+        run: npx playwright test --config=playwright.pages.config.ts
+      - name: Upload project-path failure reports
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: pages-browser-report
+          path: |
+            pages-test-report/
+            test-results/
+          retention-days: 14
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: ./_site
+  browser-tests:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/tests.yml
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
+    needs: [build, browser-tests]
     runs-on: ubuntu-latest
     permissions:
       pages: write

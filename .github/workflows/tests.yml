@@ -2,6 +2,7 @@ name: Tests
 on:
   pull_request:
   workflow_dispatch:
+  workflow_call:
 concurrency:
   # PR and manual runs for the same source branch share a group. Include the
   # source repository so identically named branches in forks remain independent.
