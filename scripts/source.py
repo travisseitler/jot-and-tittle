@@ -2,7 +2,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 root=Path(__file__).resolve().parent.parent
 with ZipFile(root/'dist/jot-and-tittle-source.zip','w',ZIP_DEFLATED) as z:
-    files=[root/p for p in ['package.json','package-lock.json','tsconfig.json','vite.config.mjs','playwright.config.ts','playwright.pages.config.ts','index.html','README.md','LICENSE','CONTRIBUTING.md','.gitignore','.prettierrc','.prettierignore','.husky/pre-commit']]
+    files=[root/p for p in ['package.json','package-lock.json','tsconfig.json','vite.config.mjs','playwright.config.ts','playwright.pages.config.ts','index.html','README.md','CHANGELOG.md','PALETTE.md','LICENSE','CONTRIBUTING.md','.gitignore','.prettierrc','.prettierignore','.husky/pre-commit']]
     # Include the palette references consumed by the browser tests, along with
     # their audit report and the project's development configuration.
     files+=list((root/'src').rglob('*'))+list((root/'scripts').rglob('*'))+list((root/'e2e').rglob('*'))+list((root/'pages-tests').rglob('*'))+list((root/'audits').rglob('*'))+list((root/'.github').rglob('*'))+list((root/'site').rglob('*'))
