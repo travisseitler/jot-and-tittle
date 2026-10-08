@@ -33,3 +33,6 @@ site/.sass-cache/
 site/.bundle/
 site/vendor/
 site/Gemfile.lock
+
+# Project-path browser reports
+pages-test-report/
