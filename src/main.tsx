@@ -1014,7 +1014,6 @@ function App() {
             <MoreHorizontal size={16} />
           </button>
         </div>
-        <div className="nav-label">YOUR SCRIPTURE, MAPPED</div>
         <nav aria-label="Main navigation">
           {[
             { id: "map", icon: Grid2X2, label: "Verse map" },
@@ -1069,29 +1068,6 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <div className="tiny-grid">
-            {Array.from({ length: 35 }, (_, i) => (
-              <i
-                key={i}
-                style={{
-                  background: ["#d9e3ca", "#b0c88b", "#779954", "#e8eadf"][
-                    i % 4
-                  ],
-                }}
-              />
-            ))}
-          </div>
-          <p>
-            Every verse.
-            <br />A little more visible.
-          </p>
-          <span>
-            A record of where you’ve been,
-            <br />
-            and room to see what’s next.
-          </span>
-        </div>
         <div className="sidebar-bottom">
           <div className="local-status">
             <span /> This browser on this device
@@ -1099,7 +1075,6 @@ function App() {
           <button onClick={() => setAbout(true)}>
             About Jot & Tittle <ArrowUpRight size={13} />
           </button>
-          <small>Made for attention, not achievement.</small>
         </div>
       </aside>
       <main id="main-content" tabIndex={-1} hidden={modal}>
@@ -1853,11 +1828,10 @@ function App() {
                     )}
                   </section>
                   <section className="reflection-card">
-                    <span className="eyebrow">A LITTLE PERSPECTIVE</span>
-                    <h3>A map, not a measure.</h3>
+                    <h3>Explore your reading</h3>
                     <p>
-                      These marks describe where you’ve read. They don’t measure
-                      your faith, your effort, or your worth.
+                      See the books and verses in the journals and dates you’re
+                      viewing.
                     </p>
                     {!active.length ? (
                       <button onClick={() => setSample(true)}>
@@ -2162,9 +2136,8 @@ function App() {
           )}
           <footer className="page-footer">
             <span>JOT & TITTLE</span>
-            <span>Every verse leaves a mark.</span>
             <button onClick={() => setPage("data")}>
-              <ShieldCheck size={12} /> Private. Local. Yours.
+              <ShieldCheck size={12} /> Your data &amp; backups
             </button>
           </footer>
         </div>
@@ -3201,8 +3174,12 @@ function App() {
             </p>
             <p>
               <strong>Yours to keep.</strong> Readings stay on your device.
-              Export and import them from Your data. There are no streaks or
-              spiritual scores.
+              Export and import them from Your data.
+            </p>
+            <p>
+              <strong>Made for attention, not achievement.</strong> These marks
+              describe the readings you’ve recorded; they don’t measure your
+              faith, effort, or worth. No streaks or spiritual scores.
             </p>
             <p className="muted">
               The name comes from Matthew 5:18. Version 0.3.0 · Open-source

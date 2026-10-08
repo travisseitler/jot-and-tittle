@@ -262,3 +262,9 @@ Planned formative research: 5–8 actual/prospective returning readers, includin
 8. Interpret frequency, recency and combined examples against exact dates/counts; identify ambiguous hues and revise legend/defaults if needed.
 
 Repeated task failure or an inaccessible primary path blocks acceptance; document and retest affected journeys. Default pagination, interaction speed and color discrimination are hypotheses, not claimed findings. All future revisions must update this document, tokens, contract and relevant Penpot/export references together.
+
+## Information design refinement · 2026-10-08
+
+The information architect, marketing director, copywriter and social media marketer approved punchlist v3 before implementation. This refinement governs current copy where historical r2 reference boards show different wording; board IDs, tokens and geometry remain unchanged.
+
+- P1: Keep the wordmark descriptor, use operational navigation and footer labels, and explain the nonjudgmental philosophy once in About. Remove decorative sidebar/footer slogans. The map reflection card points to reading exploration.
