@@ -5,6 +5,8 @@ import { parsePassage, deriveStats, serialize } from "./domain";
 import {
   DEFAULT_JOURNAL_ID,
   defaultJournal,
+  aggregateStats,
+  journalScopeIds,
   journalReadings,
   validateJournalName,
   serializeJournals,
@@ -243,7 +245,12 @@ test("journal create and delete remove only that journal’s readings", async ()
     reading("temp-reading", { journalId: "temp" }),
     null,
   );
-  const afterDelete = await repository.deleteJournal("temp");
+  await assert.rejects(
+    repository.deleteJournal("temp", timestamp),
+    /contains readings/,
+  );
+  await repository.resetJournal("temp", ["temp-reading"]);
+  const afterDelete = await repository.deleteJournal("temp", timestamp);
   assert.equal(
     afterDelete.journals.some((j) => j.id === "temp"),
     false,
@@ -453,7 +460,7 @@ test("Undo fails atomically for a missing journal or concurrently reused ID", as
     null,
   );
   const deleted = await repository.deleteReading("undo-orphan", timestamp);
-  await repository.deleteJournal("undo-gone");
+  await repository.deleteJournal("undo-gone", timestamp);
   await assert.rejects(
     repository.undo(deleted.undo.id),
     /original journal no longer exists/,
@@ -477,5 +484,290 @@ test("Undo fails atomically for a missing journal or concurrently reused ID", as
   assert.deepEqual(
     state.readings.find((r) => r.id === winner.id),
     winner,
+  );
+});
+
+test("moves preserve identity and reject stale or unavailable destinations", async () => {
+  const original = reading("move-test");
+  await repository.putReading(original, null);
+  await repository.putJournal(journal("move-target", "Move target"), null);
+  await repository.moveReading(original.id, timestamp, DEFAULT_JOURNAL_ID);
+  assert.deepEqual(
+    (await repository.load()).readings.find((r) => r.id === original.id),
+    original,
+  );
+  await assert.rejects(repository.moveReading(original.id, timestamp, "gone"));
+  const moved = (
+    await repository.moveReading(original.id, timestamp, "move-target")
+  ).readings.find((r) => r.id === original.id)!;
+  assert.deepEqual(
+    { ...moved, journalId: original.journalId, updatedAt: original.updatedAt },
+    original,
+  );
+  assert.notEqual(moved.updatedAt, timestamp);
+  await assert.rejects(
+    repository.moveReading(original.id, timestamp, DEFAULT_JOURNAL_ID),
+  );
+  assert.equal(
+    (await repository.load()).readings.filter((r) => r.id === original.id)
+      .length,
+    1,
+  );
+});
+
+test("copy chains retain encounter identity, interchange, and independent edits", async () => {
+  const original = reading("copy-source");
+  await repository.putReading(original, null);
+  await repository.putJournal(journal("copy-target", "Copy target"), null);
+  await repository.copyReading(
+    original.id,
+    timestamp,
+    "copy-target",
+    "copy-one",
+  );
+  const copy = (await repository.load()).readings.find(
+    (r) => r.id === "copy-one",
+  )!;
+  assert.equal(copy.encounterId, original.id);
+  assert.equal(copy.notes, original.notes);
+  await repository.copyReading(
+    copy.id,
+    copy.updatedAt,
+    DEFAULT_JOURNAL_ID,
+    "copy-two",
+  );
+  assert.equal(
+    (await repository.load()).readings.find((r) => r.id === "copy-two")!
+      .encounterId,
+    original.id,
+  );
+  await assert.rejects(
+    repository.copyReading(original.id, timestamp, "copy-target", "copy-one"),
+  );
+  await assert.rejects(
+    repository.copyReading(
+      original.id,
+      timestamp,
+      DEFAULT_JOURNAL_ID,
+      "same-copy",
+    ),
+  );
+  await repository.deleteReading(original.id, timestamp);
+  const state = await repository.load();
+  assert.equal(
+    deserializeJournals(
+      serializeJournals(state.journals, state.readings),
+    ).readings.find((r) => r.id === copy.id)!.encounterId,
+    original.id,
+  );
+  await repository.putReading(
+    { ...copy, notes: "Independent", updatedAt: "2026-10-06T00:00:00Z" },
+    copy.updatedAt,
+  );
+  const changed = (await repository.load()).readings.find(
+    (r) => r.id === copy.id,
+  )!;
+  assert.equal(changed.encounterId, original.id);
+  await repository.putReading(
+    {
+      ...changed,
+      startedAt: "2026-10-03",
+      datePrecision: "date",
+      updatedAt: "2026-10-07T00:00:00Z",
+    },
+    changed.updatedAt,
+  );
+  assert.notEqual(
+    (await repository.load()).readings.find((r) => r.id === copy.id)!
+      .encounterId,
+    original.id,
+  );
+});
+
+test("archiving preserves history, excludes writes, restores identity and round trips", async () => {
+  await repository.putJournal(journal("archive-test", "Archive test"), null);
+  const r = reading("archive-reading", { journalId: "archive-test" });
+  await repository.putReading(r, null);
+  const archived = await repository.archiveJournal(
+    "archive-test",
+    timestamp,
+    true,
+  );
+  assert.equal(archived.activeJournalId, DEFAULT_JOURNAL_ID);
+  assert.ok(archived.readings.some((x) => x.id === r.id));
+  await assert.rejects(
+    repository.putReading(
+      reading("archive-new", { journalId: "archive-test" }),
+      null,
+    ),
+  );
+  await assert.rejects(
+    repository.moveReading(
+      "copy-two",
+      (await repository.load()).readings.find((r) => r.id === "copy-two")!
+        .updatedAt,
+      "archive-test",
+    ),
+  );
+  await assert.rejects(repository.putReading({ ...r, notes: "no" }, timestamp));
+  await assert.rejects(repository.selectJournal("archive-test"));
+  await assert.rejects(
+    repository.archiveJournal(DEFAULT_JOURNAL_ID, timestamp, true),
+  );
+  const j = archived.journals.find((j) => j.id === "archive-test")!;
+  assert.equal(
+    deserializeJournals(
+      serializeJournals(archived.journals, archived.readings),
+    ).journals.find((x) => x.id === j.id)!.archived,
+    true,
+  );
+  await assert.rejects(repository.archiveJournal(j.id, timestamp, false));
+  const restored = await repository.archiveJournal(j.id, j.updatedAt, false);
+  assert.equal(restored.journals.find((x) => x.id === j.id)!.archived, false);
+  assert.deepEqual(
+    restored.readings.find((x) => x.id === r.id),
+    r,
+  );
+});
+
+test("journal deletion prevents default loss, stale confirmation and concurrent additions", async () => {
+  await assert.rejects(repository.deleteJournal(DEFAULT_JOURNAL_ID, timestamp));
+  const j = journal("delete-empty", "Delete empty");
+  await repository.putJournal(j, null);
+  await repository.putJournal(
+    { ...j, name: "Renamed empty", updatedAt: "2026-10-05T10:00:00Z" },
+    timestamp,
+  );
+  await assert.rejects(repository.deleteJournal(j.id, timestamp));
+  const rev = "2026-10-05T10:00:00Z";
+  await repository.putReading(
+    reading("late-delete", { journalId: j.id }),
+    null,
+  );
+  await assert.rejects(
+    repository.deleteJournal(j.id, rev),
+    /contains readings/,
+  );
+  await repository.resetJournal(j.id, ["late-delete"]);
+  const deleted = await repository.deleteJournal(j.id, rev);
+  assert.equal(deleted.activeJournalId, DEFAULT_JOURNAL_ID);
+  assert.ok(!deleted.journals.some((x) => x.id === j.id));
+});
+
+test("persistent Trash restores exact records once across concurrent operations", async () => {
+  const r = reading("trash-persistent");
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, r.updatedAt);
+  const reloaded = await repository.load();
+  const entry = reloaded.trash!.find((x) => x.id === deleted.undo.id)!;
+  assert.deepEqual(entry.readings, [r]);
+  assert.ok(!reloaded.readings.some((x) => x.id === r.id));
+  assert.ok(
+    !serializeJournals(reloaded.journals, reloaded.readings).readings.some(
+      (x) => x.id === r.id,
+    ),
+  );
+  const results = await Promise.allSettled([
+    repository.restoreTrash(entry.id),
+    repository.restoreTrash(entry.id),
+  ]);
+  assert.equal(results.filter((x) => x.status === "fulfilled").length, 1);
+  assert.deepEqual(
+    (await repository.load()).readings.find((x) => x.id === r.id),
+    r,
+  );
+  await assert.rejects(repository.undo(entry.id));
+});
+test("Trash survives journal removal, requires explicit destination and never overwrites", async () => {
+  await repository.putJournal(journal("trash-gone", "Trash gone"), null);
+  const r = reading("trash-orphan", { journalId: "trash-gone" });
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, timestamp);
+  await repository.deleteJournal("trash-gone", timestamp);
+  await assert.rejects(
+    repository.restoreTrash(deleted.undo.id),
+    /original journal/,
+  );
+  await repository.putReading(reading(r.id), null);
+  await assert.rejects(
+    repository.restoreTrash(deleted.undo.id, DEFAULT_JOURNAL_ID),
+    /same ID/,
+  );
+  await repository.deleteReading(r.id, timestamp);
+  await repository.restoreTrash(deleted.undo.id, DEFAULT_JOURNAL_ID);
+  assert.equal(
+    (await repository.load()).readings.find((x) => x.id === r.id)!.journalId,
+    DEFAULT_JOURNAL_ID,
+  );
+});
+test("retention cleanup uses deletion time and leaves active readings alone", async (t) => {
+  const r = reading("trash-expiry");
+  await repository.putReading(r, null);
+  const deleted = await repository.deleteReading(r.id, timestamp);
+  const entry = deleted.trash!.find((x) => x.id === deleted.undo.id)!;
+  t.mock.method(Date, "now", () => Date.parse(entry.expiresAt));
+  const cleaned = await repository.load();
+  assert.ok(!cleaned.trash!.some((x) => x.id === entry.id));
+  assert.ok(cleaned.readings.some((x) => x.id === "one"));
+  await assert.rejects(repository.restoreTrash(entry.id));
+  assert.throws(() =>
+    deserializeJournals({
+      ...serializeJournals(cleaned.journals, cleaned.readings),
+      trash: [],
+    }),
+  );
+});
+
+test("aggregate counting unions copies per encounter while independent identical encounters count separately", () => {
+  const a = reading("aggregate-a");
+  const copy = {
+    ...a,
+    id: "aggregate-copy",
+    journalId: "sermons",
+    encounterId: a.id,
+  };
+  const separate = { ...a, id: "aggregate-b", journalId: "sermons" };
+  const verse = a.ranges[0].start;
+  assert.equal(aggregateStats([a, copy, separate])[verse].count, 2);
+  assert.equal(deriveStats([a, copy, separate])[verse].count, 3);
+  assert.equal(aggregateStats([copy, separate])[verse].count, 2);
+  const edited = { ...copy, encounterId: "edited" };
+  assert.equal(aggregateStats([a, edited, separate])[verse].count, 3);
+  assert.equal(
+    aggregateStats(
+      deserializeJournals(
+        serializeJournals(basic().journals, [a, copy, separate]),
+      ).readings,
+    )[verse].count,
+    2,
+  );
+});
+test("all scopes follow active journals while selected scopes stay fixed and may include archives", () => {
+  const journals = [
+    ...basic().journals,
+    { ...journal("archive", "Archive"), archived: true },
+  ];
+  assert.deepEqual(journalScopeIds(journals, "all", DEFAULT_JOURNAL_ID, []), [
+    DEFAULT_JOURNAL_ID,
+    "sermons",
+  ]);
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, [
+      "archive",
+      "missing",
+    ]),
+    ["archive"],
+  );
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, []),
+    [],
+  );
+  journals.push(journal("new", "New"));
+  assert.ok(
+    journalScopeIds(journals, "all", DEFAULT_JOURNAL_ID, []).includes("new"),
+  );
+  assert.deepEqual(
+    journalScopeIds(journals, "selected", DEFAULT_JOURNAL_ID, ["sermons"]),
+    ["sermons"],
   );
 });

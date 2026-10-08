@@ -12,17 +12,23 @@ import {
 export function Heatmap({
   scope,
   stats,
+  everStats,
+  now = Date.now(),
   metric,
   layout,
   zoom,
   onSelect,
+  onInspect,
 }: {
   scope: Range;
   stats: Stats[];
+  everStats?: Stats[];
+  now?: number;
   metric: string;
   layout: string;
   zoom: number;
   onSelect: (id: number) => void;
+  onInspect?: (id: number) => void;
 }) {
   const wrapper = useRef<HTMLDivElement>(null),
     canvas = useRef<HTMLCanvasElement>(null),
@@ -60,7 +66,6 @@ export function Heatmap({
     const ctx = c.getContext("2d")!;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, height);
-    const now = Date.now();
     for (let id = scope.start; id <= scope.end; id++) {
       const i = id - offset;
       ctx.fillStyle = metricColor(stats[id], metric, now);
@@ -71,7 +76,16 @@ export function Heatmap({
         stride - 1,
       );
     }
-  }, [width, scope.start, scope.end, stats, metric, layout, zoom]);
+  }, [
+    width,
+    scope.start,
+    scope.end,
+    stats,
+    metric,
+    layout,
+    zoom,
+    metric === "frequency" ? 0 : now,
+  ]);
   useEffect(() => {
     const c = overlay.current;
     if (!c) return;
@@ -84,34 +98,69 @@ export function Heatmap({
     ctx.scale(dpr, dpr);
     if (hover === null) return;
     const b = books[verses[hover].book];
-    ctx.strokeStyle = "#577541";
-    ctx.lineWidth = 0.65;
+    // Trace the outer book boundary in the gaps, leaving every metric fill visible.
     const start = Math.max(b.start, scope.start),
       end = Math.min(b.end, scope.end);
-    for (let id = start; id <= end; id++) {
-      const i = id - offset;
-      ctx.strokeRect(
-        (i % columns) * stride - 0.3,
-        Math.floor(i / columns) * stride - 0.3,
-        stride - 0.4,
-        stride - 0.4,
-      );
+    const firstRow = Math.floor((start - offset) / columns),
+      lastRow = Math.floor((end - offset) / columns);
+    ctx.strokeStyle = "#172915";
+    ctx.lineWidth = 0.6;
+    for (let row = firstRow; row <= lastRow; row++) {
+      const left = row === firstRow ? (start - offset) % columns : 0;
+      const right = row === lastRow ? ((end - offset) % columns) + 1 : columns;
+      const x = left * stride - 0.5,
+        y = row * stride - 0.5,
+        length = (right - left) * stride;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + stride);
+      ctx.moveTo(x + length, y);
+      ctx.lineTo(x + length, y + stride);
+      if (row === firstRow) {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + length, y);
+      }
+      if (row === lastRow) {
+        ctx.moveTo(x, y + stride);
+        ctx.lineTo(x + length, y + stride);
+      }
+      ctx.stroke();
     }
     const i = hover - offset;
-    ctx.strokeStyle = "#172915";
-    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(
-      (i % columns) * stride - 1,
-      Math.floor(i / columns) * stride - 1,
-      stride + 1,
-      stride + 1,
+      (i % columns) * stride - 1.5,
+      Math.floor(i / columns) * stride - 1.5,
+      stride + 2,
+      stride + 2,
+    );
+    ctx.strokeStyle = "#172915";
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(
+      (i % columns) * stride - 0.5,
+      Math.floor(i / columns) * stride - 0.5,
+      stride,
+      stride,
     );
   }, [hover, width, layout, zoom, scope.start, scope.end]);
   function inspect(id: number) {
     const bounded = Math.max(scope.start, Math.min(scope.end, id));
+    onInspect?.(bounded);
     setFocus(bounded);
     setHover(bounded);
     const i = bounded - offset;
+    const x = (i % columns) * stride,
+      y = Math.floor(i / columns) * stride;
+    const container = wrapper.current;
+    if (container) {
+      if (x < container.scrollLeft) container.scrollLeft = x;
+      else if (x + stride > container.scrollLeft + container.clientWidth)
+        container.scrollLeft = x + stride - container.clientWidth;
+      if (y < container.scrollTop) container.scrollTop = y;
+      else if (y + stride > container.scrollTop + container.clientHeight)
+        container.scrollTop = y + stride - container.clientHeight;
+    }
     setPoint({
       x: (i % columns) * stride,
       y: Math.floor(i / columns) * stride,
@@ -137,6 +186,9 @@ export function Heatmap({
             if (e.key in deltas) {
               e.preventDefault();
               inspect(focus + deltas[e.key]);
+            } else if (e.key === "Home" || e.key === "End") {
+              e.preventDefault();
+              inspect(e.key === "Home" ? scope.start : scope.end);
             } else if (e.key === "Enter") {
               e.preventDefault();
               onSelect(focus);
@@ -161,7 +213,7 @@ export function Heatmap({
             if (id !== null) onSelect(id);
           }}
         />
-        <canvas className="overlay" ref={overlay} />
+        <canvas className="overlay" ref={overlay} aria-hidden="true" />
         {hover !== null && (
           <div
             className="map-tooltip"
@@ -175,7 +227,9 @@ export function Heatmap({
             <span>
               {stats[hover].count
                 ? `${stats[hover].count} reading${stats[hover].count === 1 ? "" : "s"} · Last read ${formatReadingDate(stats[hover].last!)}`
-                : "No recorded readings"}
+                : everStats?.[hover].count
+                  ? "No readings in this period"
+                  : "Never recorded"}
             </span>
             <small>
               {books[verses[hover].book].name} highlighted · Click to inspect

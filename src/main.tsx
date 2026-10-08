@@ -47,16 +47,25 @@ import {
 import {
   DEFAULT_JOURNAL_ID,
   defaultJournal,
+  aggregateStats,
+  journalScopeIds,
   journalReadings,
   validateJournalName,
   deserializeJournals,
   mergeJournalImport,
   describeConflict,
+  type TrashEntry,
   type Journal,
   type JournalReading as Reading,
   type JournalImport,
   type JournalState,
 } from "./journals";
+import { periodBounds, inPeriod, nextCalendarRefresh } from "./periods";
+import {
+  recencyRefreshDelay,
+  clockContext,
+  recencySignature,
+} from "./recencyClock";
 import { MetricLegend } from "./MetricLegend";
 import {
   ConflictError,
@@ -106,11 +115,26 @@ function App() {
     [confirmDelete, setConfirmDelete] = useState<Reading | null>(null),
     [confirmReset, setConfirmReset] = useState(false),
     [resetReadingIds, setResetReadingIds] = useState<string[]>([]),
+    [resetJournal, setResetJournal] = useState<Journal | null>(null),
     [about, setAbout] = useState(false),
     [conflict, setConflict] = useState<ReadingConflict | null>(null);
   const [undos, setUndos] = useState<
     (UndoOpportunity & { label: string; error?: string })[]
   >([]);
+  const [transfer, setTransfer] = useState<Reading | null>(null);
+  const [transferMode, setTransferMode] = useState("move");
+  const [copyId, setCopyId] = useState("");
+  const [destination, setDestination] = useState("");
+  const [transferError, setTransferError] = useState("");
+  const [trash, setTrash] = useState<TrashEntry[]>([]);
+  const [trashDestination, setTrashDestination] = useState<
+    Record<string, string>
+  >({});
+  const [purgeEntry, setPurgeEntry] = useState<TrashEntry | null>(null);
+  const [trashError, setTrashError] = useState("");
+  const [inspectText, setInspectText] = useState("");
+  const [inspectError, setInspectError] = useState("");
+  const [inspectedVerse, setInspectedVerse] = useState(0);
   const [backup, setBackup] = useState<JournalState["backup"]>();
   const [hasUnexportedChanges, setHasUnexportedChanges] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -150,11 +174,30 @@ function App() {
     [journalEditing, setJournalEditing] = useState<Journal | null>(null),
     [journalName, setJournalName] = useState(""),
     [journalError, setJournalError] = useState("");
-  const currentJournal =
+  const [deleteJournal, setDeleteJournal] = useState<Journal | null>(null);
+  const [deleteJournalError, setDeleteJournalError] = useState("");
+  const [manageJournals, setManageJournals] = useState(false);
+  const [archivedViewId, setArchivedViewId] = useState<string | null>(null);
+  const readOnly = !!archivedViewId;
+  const viewJournalId = archivedViewId || activeJournalId;
+  const [journalScopeMode, setJournalScopeMode] = useState("single");
+  const [selectedJournalIds, setSelectedJournalIds] = useState<string[]>([
+    DEFAULT_JOURNAL_ID,
+  ]);
+  const scopeJournalIds = journalScopeIds(
+    journals,
+    archivedViewId ? "single" : journalScopeMode,
+    viewJournalId,
+    selectedJournalIds,
+  );
+  const destinationJournal =
     journals.find((j) => j.id === activeJournalId) || journals[0];
+  const destinationReadings = journalReadings(allReadings, activeJournalId);
+  const currentJournal =
+    journals.find((j) => j.id === viewJournalId) || journals[0];
   const readings = useMemo(
-    () => journalReadings(allReadings, activeJournalId),
-    [allReadings, activeJournalId],
+    () => allReadings.filter((r) => scopeJournalIds.includes(r.journalId)),
+    [allReadings, scopeJournalIds.join("|")],
   );
   const currentState: JournalState = {
     journals,
@@ -166,8 +209,12 @@ function App() {
     : null;
   const fileRef = useRef<HTMLInputElement>(null);
   function applyState(state: JournalState) {
+    setTrash(state.trash || []);
     setBackup(state.backup);
     setHasUnexportedChanges(state.hasUnexportedChanges ?? true);
+    setArchivedViewId((id) =>
+      state.journals.some((j) => j.id === id && j.archived) ? id : null,
+    );
     setReadings(state.readings);
     setJournals(state.journals);
     setActiveJournalId(state.activeJournalId);
@@ -201,7 +248,7 @@ function App() {
         return false;
       }
       setError(
-        "Your change could not be saved. Your existing journals and readings have been kept. Check browser storage permissions.",
+        `Your change could not be saved. Your existing journals and readings have been kept. ${e instanceof Error ? e.message : "Check browser storage permissions."}`,
       );
       return false;
     } finally {
@@ -273,39 +320,77 @@ function App() {
     const t = setTimeout(() => setToast(""), 4500);
     return () => clearTimeout(t);
   }, [toast]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (conflict) {
-          setConflict(null);
-          return;
-        }
-        setModal(false);
-        setSelected(null);
-        setAbout(false);
-        setImportPreview(null);
-        setConfirmDelete(null);
-        setConfirmReset(false);
-        setJournalDialog(false);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [conflict]);
+  const [timeNow, setTimeNow] = useState(Date.now());
+  const today = dateLocal(new Date(timeNow));
+  const timeContext = clockContext(timeNow);
+  const [periodMode, setPeriodMode] = useState("all");
+  const [periodFrom, setPeriodFrom] = useState(dateLocal());
+  const [periodTo, setPeriodTo] = useState(dateLocal());
+  const [appliedPeriod, setAppliedPeriod] = useState({
+    from: dateLocal(),
+    to: dateLocal(),
+  });
+  const [periodError, setPeriodError] = useState("");
+  const period = periodBounds(
+    periodMode,
+    today,
+    appliedPeriod.from,
+    appliedPeriod.to,
+  );
+  const unfilteredStats = useMemo(
+    () => deriveStats(sample ? [] : readings),
+    [readings, sample, timeContext],
+  );
   const demo = useMemo(
       () =>
         sampleReadings().map((r) => ({ ...r, journalId: DEFAULT_JOURNAL_ID })),
       [],
     ),
-    active = sample ? demo : readings,
-    stats = useMemo(() => deriveStats(active), [active]),
+    active = useMemo(
+      () => (sample ? demo : readings).filter((r) => inPeriod(r, period)),
+      [sample, demo, readings, period.from, period.to, today, timeContext],
+    ),
+    stats = useMemo(
+      () =>
+        !archivedViewId && journalScopeMode !== "single" && !sample
+          ? aggregateStats(active)
+          : deriveStats(active),
+      [active, journalScopeMode, archivedViewId, sample, timeContext],
+    ),
     sorted = useMemo(
       () =>
         [...active].sort((a, b) =>
           compareReadingDates(b.startedAt, a.startedAt),
         ),
-      [active],
+      [active, timeContext],
     );
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let signature = recencySignature(stats, timeNow, metric),
+      context = clockContext(timeNow);
+    const refresh = () => {
+      const now = Date.now(),
+        nextSignature = recencySignature(stats, now, metric),
+        nextContext = clockContext(now);
+      if (nextSignature !== signature || nextContext !== context)
+        setTimeNow(now);
+      signature = nextSignature;
+      context = nextContext;
+      clearTimeout(timer);
+      timer = setTimeout(refresh, recencyRefreshDelay(stats, now, metric));
+    };
+    const foreground = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    refresh();
+    document.addEventListener("visibilitychange", foreground);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", foreground);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [stats, metric, timeNow]);
   const scope: Range =
     scopeRange ||
     (book === "all"
@@ -313,6 +398,11 @@ function App() {
       : chapter === "all"
         ? books[+book]
         : books[+book].chapters[+chapter - 1]);
+  useEffect(
+    () =>
+      setInspectedVerse((id) => Math.max(scope.start, Math.min(scope.end, id))),
+    [scope.start, scope.end],
+  );
   const viewed = stats.slice(scope.start, scope.end + 1),
     covered = viewed.filter((s) => s.count).length,
     total = viewed.length,
@@ -362,6 +452,7 @@ function App() {
     };
   }
   async function switchJournal(id: string) {
+    setArchivedViewId(null);
     if (saving || !storageReady || id === activeJournalId) return;
     setSaving(true);
     try {
@@ -421,7 +512,12 @@ function App() {
     }
   }
   function openLog(r: Reading | null = null, prefill = "") {
-    if (!storageReady) return;
+    if (
+      !storageReady ||
+      readOnly ||
+      (r && journals.find((j) => j.id === r.journalId)?.archived)
+    )
+      return;
     setSample(false);
     setEditing(r);
     setEditingUpdatedAt(r?.updatedAt || null);
@@ -609,7 +705,11 @@ function App() {
   async function confirmResetJournal() {
     if (
       await runWrite(
-        () => repository.resetJournal(activeJournalId, resetReadingIds),
+        () =>
+          repository.resetJournal(
+            resetJournal?.id || activeJournalId,
+            resetReadingIds,
+          ),
         (state) => {
           applyState(state);
           offerUndo(
@@ -688,11 +788,13 @@ function App() {
               disabled={!storageReady || saving}
               onChange={(e) => switchJournal(e.target.value)}
             >
-              {journals.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.name}
-                </option>
-              ))}
+              {journals
+                .filter((j) => !j.archived)
+                .map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.name}
+                  </option>
+                ))}
             </select>
           </label>
           <button
@@ -719,6 +821,7 @@ function App() {
           ].map(({ id, icon: Icon, label }) => (
             <button
               key={id}
+              aria-current={page === id ? "page" : undefined}
               className={`nav-item ${page === id ? "active" : ""}`}
               onClick={() => setPage(id)}
             >
@@ -830,6 +933,128 @@ function App() {
         )}
 
         <div className="content">
+          <section className="panel" aria-label="Calendar filters">
+            <label>
+              Reading period
+              <select
+                aria-label="Reading period"
+                value={periodMode}
+                onChange={(e) => {
+                  setPeriodMode(e.target.value);
+                  setPeriodError("");
+                }}
+              >
+                <option value="all">All time</option>
+                <option value="month">This month</option>
+                <option value="year">This year</option>
+                <option value="custom">Custom dates</option>
+              </select>
+            </label>
+            {periodMode === "custom" && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  try {
+                    periodBounds("custom", today, periodFrom, periodTo);
+                    setAppliedPeriod({ from: periodFrom, to: periodTo });
+                    setPeriodError("");
+                  } catch (e) {
+                    setPeriodError((e as Error).message);
+                  }
+                }}
+              >
+                <label>
+                  Start date
+                  <input
+                    type="date"
+                    value={periodFrom}
+                    onChange={(e) => setPeriodFrom(e.target.value)}
+                  />
+                </label>
+                <label>
+                  End date
+                  <input
+                    type="date"
+                    value={periodTo}
+                    onChange={(e) => setPeriodTo(e.target.value)}
+                  />
+                </label>
+                <button>Apply dates</button>
+              </form>
+            )}
+            {periodError && <p role="alert">{periodError}</p>}
+            <p>
+              Applied period:{" "}
+              {period.from
+                ? `${period.from} through ${period.to} (inclusive)`
+                : "All time"}
+              . Recency is measured relative to today, {today}, in this
+              browser’s timezone. Known times use their local calendar date.
+            </p>
+            {periodMode !== "all" && !active.length && (
+              <p role="status">No readings in this period.</p>
+            )}
+          </section>
+          <section className="panel" aria-label="Journal view scope">
+            <label>
+              View journals
+              <select
+                aria-label="View journals"
+                value={journalScopeMode}
+                onChange={(e) => setJournalScopeMode(e.target.value)}
+              >
+                <option value="single">Current journal</option>
+                <option value="all">All active journals</option>
+                <option value="selected">Selected journals</option>
+              </select>
+            </label>
+            {journalScopeMode === "selected" && (
+              <fieldset>
+                <legend>Journals to include (archives are read-only)</legend>
+                {journals.map((j) => (
+                  <label key={j.id}>
+                    <input
+                      type="checkbox"
+                      checked={selectedJournalIds.includes(j.id)}
+                      onChange={(e) =>
+                        setSelectedJournalIds((ids) =>
+                          e.target.checked
+                            ? [...ids, j.id]
+                            : ids.filter((id) => id !== j.id),
+                        )
+                      }
+                    />
+                    {j.name}
+                    {j.archived ? " (archived)" : ""}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+            <p>
+              Viewing:{" "}
+              {scopeJournalIds
+                .map((id) => journals.find((j) => j.id === id)?.name)
+                .join(", ") || "No journals selected"}
+              . New readings go to{" "}
+              {journals.find((j) => j.id === activeJournalId)?.name}. Aggregate
+              metrics count each encounter once per verse; history shows each
+              journal record.
+            </p>
+            {!scopeJournalIds.length && (
+              <p role="status">Select at least one journal to see readings.</p>
+            )}
+          </section>
+          {readOnly && (
+            <p role="status">
+              Archived journal · read-only.{" "}
+              <button onClick={() => setManageJournals(true)}>
+                Manage journals
+              </button>
+              <button onClick={() => setArchivedViewId(null)}>
+                Return to active journal
+              </button>
+            </p>
+          )}
           <div className="journal-context">
             <span>
               <BookOpen size={13} />
@@ -1049,6 +1274,7 @@ function App() {
                   <div className="layout-controls">
                     <div className="segmented compact">
                       <button
+                        aria-pressed={layout === "continuous"}
                         className={layout === "continuous" ? "chosen" : ""}
                         onClick={() => setLayout("continuous")}
                         title="Responsive, continuous flow"
@@ -1056,6 +1282,7 @@ function App() {
                         <Grid2X2 size={13} /> Flow
                       </button>
                       <button
+                        aria-pressed={layout === "fixed-grid"}
                         className={layout === "fixed-grid" ? "chosen" : ""}
                         onClick={() => setLayout("fixed-grid")}
                         title="Stable, 160-column canonical grid"
@@ -1105,10 +1332,16 @@ function App() {
                     <Heatmap
                       scope={scope}
                       stats={stats}
+                      everStats={unfilteredStats}
+                      now={timeNow}
                       metric={metric}
                       layout={layout}
                       zoom={zoom}
-                      onSelect={setSelected}
+                      onInspect={setInspectedVerse}
+                      onSelect={(id) => {
+                        setInspectedVerse(id);
+                        setSelected(id);
+                      }}
                     />
                   )}
                 </div>
@@ -1118,6 +1351,74 @@ function App() {
                     <span className="footer-separator">·</span> Hover to find
                     your place
                   </span>
+                  <section
+                    className="text-inspector"
+                    aria-label="Textual verse inspection"
+                  >
+                    <h3>Inspect a verse</h3>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        try {
+                          const ranges = parsePassage(inspectText);
+                          if (rangeCount(ranges) !== 1)
+                            throw new Error(
+                              "Enter one verse, such as John 3:16.",
+                            );
+                          setInspectedVerse(ranges[0].start);
+                          setSelected(ranges[0].start);
+                          setInspectError("");
+                        } catch (e) {
+                          setInspectError((e as Error).message);
+                        }
+                      }}
+                    >
+                      <label>
+                        Verse reference
+                        <input
+                          value={inspectText}
+                          onChange={(e) => setInspectText(e.target.value)}
+                          placeholder="John 3:16"
+                        />
+                      </label>
+                      <button>Inspect verse</button>
+                    </form>
+                    {inspectError && <p role="alert">{inspectError}</p>}
+                    <p role="status" aria-live="polite">
+                      {reference(inspectedVerse)} ·{" "}
+                      {stats[inspectedVerse].count} recorded readings ·{" "}
+                      {stats[inspectedVerse].last
+                        ? `Last read ${formatDate(stats[inspectedVerse].last!)}`
+                        : unfilteredStats[inspectedVerse].count
+                          ? "No readings in this period"
+                          : "Never recorded"}
+                    </p>
+                    <button
+                      disabled={inspectedVerse <= scope.start}
+                      onClick={() =>
+                        setInspectedVerse((id) => Math.max(scope.start, id - 1))
+                      }
+                    >
+                      Previous verse
+                    </button>
+                    <button
+                      disabled={inspectedVerse >= scope.end}
+                      onClick={() =>
+                        setInspectedVerse((id) => Math.min(scope.end, id + 1))
+                      }
+                    >
+                      Next verse
+                    </button>
+                    <button onClick={() => setSelected(inspectedVerse)}>
+                      Open inspected verse details
+                    </button>
+                    <p>
+                      Arrow keys on the map inspect verses; Home and End jump to
+                      the scope boundaries. Enter or tap opens details. Text
+                      inspection provides the same counts and dates without
+                      using the map.
+                    </p>
+                  </section>
                   <MetricLegend metric={metric} />
                 </div>
               </section>
@@ -1147,6 +1448,9 @@ function App() {
                         </span>
                         <div>
                           <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
+                          <span>
+                            {journals.find((j) => j.id === r.journalId)?.name}
+                          </span>
                           <small>
                             {formatDate(r.startedAt)} <span>·</span>{" "}
                             {pretty(rangeCount(r.ranges))} verses
@@ -1222,6 +1526,9 @@ function App() {
                       {formatDate(r.startedAt)}
                     </div>
                     <div className="history-passage">
+                      <span>
+                        {journals.find((j) => j.id === r.journalId)?.name}
+                      </span>
                       <strong>{r.ranges.map(rangeLabel).join("; ")}</strong>
                       <small>
                         {pretty(rangeCount(r.ranges))} unique verses
@@ -1230,7 +1537,46 @@ function App() {
                     </div>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
+                      aria-label={`Move ${r.originalInput}`}
+                      onClick={() => {
+                        setTransferMode("move");
+                        setTransfer(r);
+                        setDestination("");
+                        setTransferError("");
+                      }}
+                    >
+                      <ArrowRight size={16} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
+                      aria-label={`Copy ${r.originalInput}`}
+                      onClick={() => {
+                        setTransferMode("copy");
+                        setCopyId(crypto.randomUUID());
+                        setTransfer(r);
+                        setDestination("");
+                        setTransferError("");
+                      }}
+                    >
+                      <Layers size={16} />
+                    </button>
+                    <button
+                      className="icon-btn"
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Edit ${r.originalInput}`}
                       onClick={() => openLog(r)}
                     >
@@ -1238,7 +1584,11 @@ function App() {
                     </button>
                     <button
                       className="icon-btn"
-                      disabled={sample}
+                      disabled={
+                        sample ||
+                        readOnly ||
+                        !!journals.find((j) => j.id === r.journalId)?.archived
+                      }
                       aria-label={`Delete ${r.originalInput}`}
                       onClick={() => setConfirmDelete(r)}
                     >
@@ -1431,6 +1781,98 @@ function App() {
                 </section>
               </div>
               <section className="panel">
+                <h2>Trash</h2>
+                <p>
+                  Readings are recoverable for 30 days after deletion, including
+                  journal clearing. Trash is excluded from maps, history,
+                  statistics, and exports. Restore before exporting a backup.
+                  Journal deletion keeps Trash; choose another destination if
+                  needed.
+                </p>
+                {trashError && <p role="alert">{trashError}</p>}
+                {!trash.length && <p>Trash is empty.</p>}
+                {trash.map((entry) => (
+                  <article key={entry.id}>
+                    <h3>{entry.readings.length} deleted readings</h3>
+                    <p>
+                      Deleted {formatDate(entry.deletedAt)} · Expires{" "}
+                      {formatDate(entry.expiresAt)}
+                    </p>
+                    {entry.readings.map((r) => (
+                      <p key={r.id}>
+                        {r.ranges.map(rangeLabel).join("; ")} ·{" "}
+                        {formatDate(r.startedAt)} · {r.notes} · Original
+                        journal:{" "}
+                        {journals.find((j) => j.id === r.journalId)?.name ||
+                          "Removed journal"}
+                      </p>
+                    ))}
+                    <label>
+                      Restoration destination
+                      <select
+                        aria-label={`Restore destination ${entry.id}`}
+                        value={trashDestination[entry.id] || ""}
+                        onChange={(e) =>
+                          setTrashDestination((x) => ({
+                            ...x,
+                            [entry.id]: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">
+                          Original journal (must be active)
+                        </option>
+                        {journals
+                          .filter((j) => !j.archived)
+                          .map((j) => (
+                            <option key={j.id} value={j.id}>
+                              {j.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        if (saving) return;
+                        setSaving(true);
+                        try {
+                          applyState(
+                            await repository.restoreTrash(
+                              entry.id,
+                              trashDestination[entry.id] || undefined,
+                            ),
+                          );
+                          setTrashError("");
+                          setUndos((x) => x.filter((u) => u.id !== entry.id));
+                        } catch (e) {
+                          setTrashError((e as Error).message);
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                    >
+                      Restore deleted readings
+                    </button>
+                    <button
+                      disabled={saving}
+                      onClick={() => setPurgeEntry(entry)}
+                    >
+                      Permanently delete from Trash
+                    </button>
+                  </article>
+                ))}
+              </section>
+              <section className="panel">
+                <h2>Journals</h2>
+                <button
+                  className="secondary"
+                  onClick={() => setManageJournals(true)}
+                >
+                  Manage journals
+                </button>
+              </section>
+              <section className="panel">
                 <h2>About this reading space</h2>
                 <dl className="data-details">
                   <div>
@@ -1485,15 +1927,17 @@ function App() {
                 <div>
                   <h2>Clear this journal</h2>
                   <p>
-                    Remove all {readings.length} readings from “
-                    {currentJournal.name}”. Your other journals stay intact.
+                    Remove all {destinationReadings.length} readings from “
+                    {destinationJournal.name}”. Your other journals stay intact.
                     Export a backup first if you want to keep these readings.
                   </p>
                 </div>
                 <button
                   className="danger-outline"
+                  disabled={readOnly || sample || saving}
                   onClick={() => {
-                    setResetReadingIds(readings.map((r) => r.id));
+                    setResetJournal(destinationJournal);
+                    setResetReadingIds(destinationReadings.map((r) => r.id));
                     setConfirmReset(true);
                   }}
                 >
@@ -1530,8 +1974,15 @@ function App() {
           onClose={() => setModal(false)}
         >
           <p className="dialog-intro">
-            Recording in <strong>{currentJournal.name}</strong>. A chapter, a
-            verse, or a few passages.
+            Recording in{" "}
+            <strong>
+              {
+                journals.find(
+                  (j) => j.id === (editing?.journalId || activeJournalId),
+                )?.name
+              }
+            </strong>
+            . A chapter, a verse, or a few passages.
           </p>
           <form onSubmit={saveReading}>
             <label className="field-label">
@@ -1543,10 +1994,13 @@ function App() {
               />
             </label>
             <small className="field-help">
-              Book names or abbreviations. Separate passages with semicolons.
+              Book names or abbreviations. Commas inherit verse context (John
+              3:16, 18–21) or chapter context (John 3, 5). Repeat the book or
+              use a semicolon to start chapters after verses.
             </small>
             {input && (
               <div
+                role={parsed.error ? "alert" : "status"}
                 className={
                   parsed.error ? "parse-preview invalid" : "parse-preview"
                 }
@@ -1633,7 +2087,9 @@ function App() {
             <p>
               {stats[selected].last
                 ? `Last read ${formatDate(stats[selected].last!)}`
-                : "This verse has no recorded readings."}
+                : unfilteredStats[selected].count
+                  ? "No readings in this period."
+                  : "Never recorded in these journals."}
             </p>
             {stats[selected].first && (
               <p className="muted">
@@ -1649,7 +2105,10 @@ function App() {
               .map((r) => (
                 <div key={r.id}>
                   <span>{formatDate(r.startedAt)}</span>
-                  <small>{r.ranges.map(rangeLabel).join("; ")}</small>
+                  <small>
+                    {journals.find((j) => j.id === r.journalId)?.name} ·{" "}
+                    {r.ranges.map(rangeLabel).join("; ")}
+                  </small>
                 </div>
               ))}
           </div>
@@ -1853,7 +2312,7 @@ function App() {
           title={
             confirmDelete
               ? "Delete this reading?"
-              : `Clear “${currentJournal.name}”?`
+              : `Clear “${resetJournal?.name || destinationJournal.name}”?`
           }
           onClose={() => {
             setConfirmDelete(null);
@@ -1864,7 +2323,7 @@ function App() {
           <p className="dialog-intro">
             {confirmDelete
               ? `${confirmDelete.ranges.map(rangeLabel).join("; ")} · ${formatDate(confirmDelete.startedAt)}`
-              : `The ${resetReadingIds.length} readings present when you opened this confirmation will be removed. Readings added afterward in another tab are preserved. Other journals stay intact. This cannot be undone without an export.`}
+              : `The ${resetReadingIds.length} readings present when you opened this confirmation will be removed. Readings added afterward in another tab are preserved. Other journals stay intact. Recover these readings from Trash for 30 days.`}
           </p>
           {confirmReset && (
             <button className="secondary" onClick={exportData}>
@@ -1892,6 +2351,216 @@ function App() {
               {confirmDelete ? "Delete reading" : "Clear journal readings"}
             </button>
           </div>
+        </Dialog>
+      )}
+      {transfer && (
+        <Dialog
+          title={transferMode === "copy" ? "Copy reading" : "Move reading"}
+          onClose={() => setTransfer(null)}
+        >
+          <p>
+            {transferMode === "copy" ? "Copy" : "Move"} {transfer.originalInput}{" "}
+            to another journal. The reading keeps its identity, date, passages,
+            and notes.
+          </p>
+          <p>
+            Copies share one encounter across journals. Changing a copy’s date
+            or passages starts a new encounter. Same-journal copies are
+            disabled.
+          </p>
+          <label>
+            Destination journal
+            <select
+              aria-label="Destination journal"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+            >
+              <option value="">Choose a journal</option>
+              {journals
+                .filter((j) => j.id !== transfer.journalId)
+                .map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          {transferError && <p role="alert">{transferError}</p>}
+          <button
+            className="primary"
+            disabled={!destination || saving}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(
+                  await (transferMode === "copy"
+                    ? repository.copyReading(
+                        transfer.id,
+                        transfer.updatedAt,
+                        destination,
+                        copyId,
+                      )
+                    : repository.moveReading(
+                        transfer.id,
+                        transfer.updatedAt,
+                        destination,
+                      )),
+                );
+                setTransfer(null);
+                setToast(
+                  transferMode === "copy"
+                    ? "Reading copied."
+                    : "Reading moved.",
+                );
+              } catch (e) {
+                setTransferError(
+                  e instanceof ConflictError
+                    ? describeConflict(e.kind)
+                    : (e as Error).message,
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {transferMode === "copy" ? "Copy reading" : "Move reading"}
+          </button>
+        </Dialog>
+      )}
+      {purgeEntry && (
+        <Dialog
+          title="Permanently delete readings"
+          onClose={() => setPurgeEntry(null)}
+        >
+          <p>
+            Permanently remove {purgeEntry.readings.length} readings from Trash.
+            This cannot be undone.
+          </p>
+          <button
+            className="danger"
+            disabled={saving}
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(await repository.purgeTrash(purgeEntry.id));
+                setUndos((x) => x.filter((u) => u.id !== purgeEntry.id));
+                setPurgeEntry(null);
+              } catch (e) {
+                setTrashError((e as Error).message);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Confirm permanent deletion
+          </button>
+        </Dialog>
+      )}
+      {deleteJournal && (
+        <Dialog
+          title={`Delete journal “${deleteJournal.name}”`}
+          onClose={() => setDeleteJournal(null)}
+        >
+          <p>
+            {allReadings.filter((r) => r.journalId === deleteJournal.id).length}{" "}
+            active readings are associated with this journal. Journals must be
+            empty before deletion. Move readings to another journal, or restore
+            an archive and clear its readings first. Archive instead to keep
+            this journal.
+          </p>
+          <p>
+            Journal deletion is permanent. Export all journals before
+            proceeding. Deleted readings in Trash will require another
+            destination if this journal is removed.
+          </p>
+          <button
+            className="secondary"
+            onClick={exportData}
+            disabled={exporting}
+          >
+            Export all journals
+          </button>
+          {deleteJournalError && <p role="alert">{deleteJournalError}</p>}
+          <button
+            className="danger"
+            disabled={
+              saving ||
+              allReadings.some((r) => r.journalId === deleteJournal.id)
+            }
+            onClick={async () => {
+              if (saving) return;
+              setSaving(true);
+              try {
+                applyState(
+                  await repository.deleteJournal(
+                    deleteJournal.id,
+                    deleteJournal.updatedAt,
+                  ),
+                );
+                setDeleteJournal(null);
+                setToast("Empty journal deleted.");
+              } catch (e) {
+                setDeleteJournalError(
+                  e instanceof ConflictError
+                    ? describeConflict(e.kind)
+                    : (e as Error).message,
+                );
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            Permanently delete empty journal
+          </button>
+        </Dialog>
+      )}
+      {manageJournals && (
+        <Dialog
+          title="Manage journals"
+          onClose={() => setManageJournals(false)}
+        >
+          <p>
+            Archived journals keep their history and exports. Restore them
+            before changing readings.
+          </p>
+          {journals.map((j) => (
+            <div key={j.id}>
+              <strong>
+                {j.name} {j.archived ? "(archived)" : "(active)"}
+              </strong>
+              {j.archived && (
+                <button
+                  onClick={() => {
+                    setArchivedViewId(j.id);
+                    setManageJournals(false);
+                    setPage("history");
+                  }}
+                >
+                  Inspect {j.name}
+                </button>
+              )}
+              {j.id !== DEFAULT_JOURNAL_ID && (
+                <button
+                  disabled={saving}
+                  onClick={async () => {
+                    await runWrite(
+                      () =>
+                        repository.archiveJournal(
+                          j.id,
+                          j.updatedAt,
+                          !j.archived,
+                        ),
+                      applyState,
+                    );
+                  }}
+                >
+                  {j.archived ? "Restore" : "Archive"} {j.name}
+                </button>
+              )}
+            </div>
+          ))}
         </Dialog>
       )}
       {journalDialog && (
@@ -2013,6 +2682,24 @@ function App() {
     </div>
   );
 }
+const dialogStack: HTMLElement[] = [];
+const originalInert = new Map<HTMLElement, boolean>();
+let originalOverflow = "";
+function syncDialogs() {
+  const top = dialogStack.at(-1);
+  const host = top?.parentElement;
+  if (top)
+    for (const child of Array.from(host?.children || [])) {
+      if (!(child instanceof HTMLElement)) continue;
+      if (!originalInert.has(child)) originalInert.set(child, child.inert);
+      child.inert = child !== top;
+    }
+  else {
+    for (const [child, value] of originalInert) child.inert = value;
+    originalInert.clear();
+    document.body.style.overflow = originalOverflow;
+  }
+}
 function Dialog({
   title,
   onClose,
@@ -2026,15 +2713,31 @@ function Dialog({
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
-    const bodyOverflow = document.body.style.overflow;
+    const backdrop = root.current!.parentElement!;
+    if (!dialogStack.length) originalOverflow = document.body.style.overflow;
+    dialogStack.push(backdrop);
     document.body.style.overflow = "hidden";
+    syncDialogs();
     const focus =
-      root.current?.querySelector<HTMLElement>("input,textarea,select") ||
-      root.current?.querySelector<HTMLElement>("button");
+      root.current?.querySelector<HTMLElement>(
+        'input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled)',
+      ) ||
+      root.current?.querySelector<HTMLElement>("button:not(:disabled)") ||
+      root.current;
     focus?.focus();
     return () => {
-      document.body.style.overflow = bodyOverflow;
-      previous?.focus();
+      const index = dialogStack.indexOf(backdrop);
+      if (index >= 0) dialogStack.splice(index, 1);
+      syncDialogs();
+      if (previous?.isConnected && !previous.closest("[inert]"))
+        previous.focus();
+      else
+        (
+          dialogStack
+            .at(-1)
+            ?.querySelector<HTMLElement>("button:not(:disabled)") ||
+          document.querySelector<HTMLElement>("header button:not(:disabled)")
+        )?.focus();
     };
   }, []);
   return (
@@ -2048,13 +2751,20 @@ function Dialog({
         className="dialog"
         ref={root}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+            return;
+          }
           if (e.key === "Tab") {
             const elements = Array.from(
               root.current?.querySelectorAll<HTMLElement>(
-                'button:not(:disabled),input,textarea,select,[tabindex="0"]',
+                'button:not(:disabled),input:not(:disabled):not([type="hidden"]),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]',
               ) || [],
             );
             const first = elements[0],
