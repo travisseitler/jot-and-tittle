@@ -1198,8 +1198,8 @@ function App() {
               </div>
               <h1 tabIndex={-1}>
                 {page === "map"
-                  ? !allReadings.length && !sample && !exploreEmpty
-                    ? "Your first reading"
+                  ? !allReadings.length && !sample && !exploreEmpty && !readOnly
+                    ? "Your verse map"
                     : "Your reading, at a glance"
                   : page === "history"
                     ? "Reading history"
@@ -1266,6 +1266,7 @@ function App() {
           )}
           {page === "map" &&
             !sample &&
+            !readOnly &&
             !allReadings.length &&
             !exploreEmpty &&
             ready &&
@@ -1273,10 +1274,12 @@ function App() {
               <section className="welcome">
                 <div className="welcome-composition">
                   <div className="welcome-copy">
-                    <h2 className="sr-only">Log your first reading</h2>
+                    <h2>Start with a passage</h2>
                     <p>
-                      Record a chapter, a few verses, or several passages
-                      together. Your map grows with your reading.
+                      Log a chapter, a few verses, or several Bible passages
+                      together. Each square represents a verse; color shows when
+                      and how often you’ve recorded it. Bible text is not
+                      included.
                     </p>
                     <div className="welcome-actions">
                       <button className="primary" onClick={() => openLog()}>
@@ -1308,7 +1311,7 @@ function App() {
               </section>
             )}
           {page === "map" &&
-            (sample || allReadings.length > 0 || exploreEmpty) && (
+            (sample || allReadings.length > 0 || exploreEmpty || readOnly) && (
               <>
                 <dl
                   className="reading-summary"

@@ -268,3 +268,4 @@ Repeated task failure or an inaccessible primary path blocks acceptance; documen
 The information architect, marketing director, copywriter and social media marketer approved punchlist v3 before implementation. This refinement governs current copy where historical r2 reference boards show different wording; board IDs, tokens and geometry remain unchanged.
 
 - P1: Keep the wordmark descriptor, use operational navigation and footer labels, and explain the nonjudgmental philosophy once in About. Remove decorative sidebar/footer slogans. The map reflection card points to reading exploration.
+- P2: First-use heading identifies the verse map; welcome explains Bible passages, square/color meaning and the absence of Bible text. Demo is explicitly an unsaved illustration. Archived inspection cannot enter personal onboarding.
