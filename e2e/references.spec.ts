@@ -16,7 +16,14 @@ test("comma preview counts unique verses and invalid shorthand cannot partially 
   await page.getByLabel("Passage or passages").fill("John 3:16, 4:1–3, 99");
   await expect(
     page.getByRole("button", { name: "Save reading", exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
+  await page.getByRole("button", { name: "Save reading", exact: true }).click();
+  await expect(page.getByLabel("Passage or passages")).toBeFocused();
+  await expect(page.getByLabel("Passage or passages")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expect(page.locator(".capture-card")).toBeVisible();
   await expect(page.locator(".parse-preview")).toContainText(
     "John 4 has 54 verses",
   );
@@ -27,7 +34,7 @@ test("comma preview counts unique verses and invalid shorthand cannot partially 
     "5 unique verses recognized",
   );
   await page.getByRole("button", { name: "Save reading", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".capture-card")).toHaveCount(0);
   await history(page);
   await expect(page.locator(".history-row")).toHaveCount(1);
   await expect(page.locator(".history-row")).toContainText("Keep this draft");

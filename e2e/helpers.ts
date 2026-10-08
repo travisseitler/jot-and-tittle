@@ -26,7 +26,7 @@ export async function log(page: Page, passage = "Genesis 1:1", notes = "") {
   await page.getByLabel("Reading date").fill("2026-10-05");
   await page.getByLabel("Notes").fill(notes);
   await page.getByRole("button", { name: "Save reading", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".capture-card")).toHaveCount(0);
 }
 export async function history(page: Page) {
   await page

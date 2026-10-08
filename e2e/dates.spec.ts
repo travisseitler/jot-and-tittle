@@ -41,6 +41,7 @@ test("calendar date survives export into a different timezone and editing", asyn
     await other
       .getByRole("button", { name: "Save changes", exact: true })
       .click();
+    await expect(other.locator(".capture-card")).toHaveCount(0);
     await other.reload();
     await history(other);
     await expect(other.locator(".history-date")).toContainText("Oct 5, 2026");
@@ -91,6 +92,7 @@ test("v2 database migration retains original timestamp and allows date correctio
   );
   await page.getByLabel("Reading date").fill("2026-10-02");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.locator(".capture-card")).toHaveCount(0);
   await expect(page.locator(".history-date")).toContainText("Oct 2, 2026");
   await data(page);
   const downloading = page.waitForEvent("download");

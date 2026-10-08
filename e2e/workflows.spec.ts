@@ -24,7 +24,7 @@ test("readings can be logged, edited, reloaded and deleted", async ({
   await page.getByLabel("Passage or passages").fill("Psalm 23");
   await page.getByLabel("Notes").fill("updated note");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".capture-card")).toHaveCount(0);
   await page.reload();
   await history(page);
   await expect(page.locator(".history-row")).toContainText(
@@ -51,11 +51,16 @@ test("journals track the same verse independently and persist names and selectio
   await open(page);
   await log(page, "Genesis 1:1", "default journal");
   await createJournal(page, "Sermons");
-  const canvas = page.getByRole("img", { name: /verse map/ });
+  const canvas = page.getByRole("group", { name: /verse map,/ });
   await canvas.focus();
   await canvas.press("Enter");
-  await expect(page.getByRole("dialog")).toContainText("0 recorded readings");
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await expect(page.locator(".detail-surface")).toContainText(
+    "0 recorded readings",
+  );
+  await page
+    .locator(".detail-surface")
+    .getByRole("button", { name: "Back to map", exact: true })
+    .click();
   await history(page);
   await expect(page.locator(".history-row")).toHaveCount(0);
   await log(page, "Genesis 1:1", "sermon journal");
@@ -125,7 +130,13 @@ test("export, previewed merge, duplicates and journal-local reset preserve unrel
     mimeType: "application/json",
     buffer: Buffer.from(backup),
   });
-  await page.getByRole("button", { name: "Merge journals & readings" }).click();
+  await expect(
+    page.getByRole("button", { name: "Merge journals & readings" }),
+  ).toBeDisabled();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await history(page);
   await expect(page.locator(".history-row")).toHaveCount(1);

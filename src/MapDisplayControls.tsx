@@ -8,6 +8,7 @@ import {
   Plus,
   Expand,
 } from "lucide-react";
+import "./map-design.css";
 type Props = {
   metric: string;
   layout: string;
@@ -28,7 +29,7 @@ export function MapDisplayControls({
     <section
       id="map-display-panel"
       aria-label="Map display settings"
-      className="map-display-panel"
+      className="map-display-panel r2-map-display"
     >
       <div
         className="segmented metric-tabs"
@@ -79,7 +80,7 @@ export function MapDisplayControls({
         <span className="tool-divider" />
         <button
           className="icon-btn"
-          aria-label="Zoom out"
+          aria-label="Decrease cell size"
           disabled={zoom <= 4}
           onClick={() => setZoom((x) => x - 2)}
         >
@@ -87,7 +88,7 @@ export function MapDisplayControls({
         </button>
         <button
           className="icon-btn"
-          aria-label="Zoom in"
+          aria-label="Increase cell size"
           disabled={zoom >= 14}
           onClick={() => setZoom((x) => x + 2)}
         >
@@ -95,11 +96,14 @@ export function MapDisplayControls({
         </button>
         <button
           className="icon-btn"
-          aria-label="Reset zoom"
+          aria-label="Reset cell size"
           onClick={() => setZoom(4)}
         >
           <Expand size={14} />
         </button>
+        <span className="r2-cell-size">
+          Cell size: {zoom}px · {zoom + 1}px spacing
+        </span>
       </div>
     </section>
   );

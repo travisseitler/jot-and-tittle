@@ -43,9 +43,10 @@ test("all palette buckets render at minimum and focused scales without losing me
   });
   await page.reload();
   await page.getByRole("button", { name: /Map display/ }).click();
-  const canvas = page.getByRole("img", { name: /verse map/ });
-  for (const stride of [4, 8, 14]) {
-    if (stride === 8) {
+  const canvas = page.locator(".canvas-wrap canvas").first();
+  for (const cellSize of [4, 8, 14]) {
+    if (cellSize === 8) {
+      await page.getByRole("button", { name: "Done", exact: true }).click();
       await page
         .getByRole("button", { name: "Go to passage", exact: true })
         .click();
@@ -53,10 +54,14 @@ test("all palette buckets render at minimum and focused scales without losing me
       await page
         .getByRole("button", { name: "Focus passage", exact: true })
         .click();
+      await page.getByRole("button", { name: /Map display/ }).click();
     }
-    const before = stride === 4 ? 4 : stride === 8 ? 4 : 8;
-    for (let current = before; current < stride; current += 2)
-      await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    const before = cellSize === 4 ? 4 : cellSize === 8 ? 4 : 8;
+    const stride = cellSize + 1;
+    for (let current = before; current < cellSize; current += 2)
+      await page
+        .getByRole("button", { name: "Increase cell size", exact: true })
+        .click();
     const colors = combinedPalette.flat();
     await expect
       .poll(() =>
@@ -88,10 +93,11 @@ test("all palette buckets render at minimum and focused scales without losing me
       )
       .toBe(true);
   }
-  await page.getByText("Read the colors", { exact: true }).click();
-  await expect(page.locator(".legend-panel")).toContainText("365+ d");
-  await expect(page.locator(".legend-panel")).toContainText("1–6 d");
-  await page.getByText("Read the colors", { exact: true }).click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByText("View color key", { exact: true }).click();
+  await expect(page.locator(".r2-metric-legend")).toContainText("365+ days");
+  await expect(page.locator(".r2-metric-legend")).toContainText("1–6 days");
+  await page.getByText("View color key", { exact: true }).click();
   const snapshot = await canvas.evaluate((el: HTMLCanvasElement) =>
     el.toDataURL(),
   );

@@ -51,7 +51,9 @@ test("empty map demo can pause and gives way to a real reading", async ({
   await log(page);
   await expect(demo).toHaveCount(0);
   await expect(
-    page.getByRole("img", { name: /Combined recency and frequency verse map/ }),
+    page.getByRole("group", {
+      name: /Combined recency and frequency verse map/,
+    }),
   ).toBeVisible();
   await page.reload();
   await expect(demo).toHaveCount(0);

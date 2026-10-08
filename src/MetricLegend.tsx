@@ -4,79 +4,90 @@ import {
   recencyLabels,
   palette,
 } from "./domain";
+import "./map-design.css";
 export function MetricLegend({ metric }: { metric: string }) {
   if (metric !== "combined")
     return (
-      <div className="legend">
-        <span>{metric === "recency" ? "Older" : "Fewer"}</span>
-        {[
-          "Not recorded",
-          ...(metric === "recency" ? recencyLabels : frequencyLabels),
-        ].map((label, i) => (
-          <i
-            key={label}
-            title={label}
-            aria-label={label}
-            style={{ background: palette[i] }}
-          />
-        ))}
-        <span>{metric === "recency" ? "Recent" : "More"}</span>
-      </div>
+      <section
+        className="r2-metric-legend"
+        aria-label={`${metric === "recency" ? "Recency" : "Frequency"} color key`}
+      >
+        <ul className="r2-legend-buckets">
+          {[
+            "No qualifying date or records",
+            ...(metric === "recency" ? recencyLabels : frequencyLabels),
+          ].map((label, i) => (
+            <li key={label}>
+              <i
+                className="r2-swatch"
+                style={{ background: palette[i] }}
+                aria-hidden="true"
+              />
+              <span>
+                {i === 0 && metric === "frequency"
+                  ? "No records in this view"
+                  : label}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p>
+          Counts and exact dates are available in Text view and inspection. Gray
+          can also mean a future recorded date in Recency.
+        </p>
+      </section>
     );
   return (
-    <div className="combined-legend">
-      <span className="combined-key">
-        <span>Older</span>
+    <section className="r2-metric-legend" aria-label="Combined color key">
+      <div className="combined-key">
+        <span>Recency: older</span>
         {combinedPalette[2].map((color, i) => (
           <i
+            className="r2-swatch"
             key={i}
             style={{ background: color }}
             title={recencyLabels[i]}
-            aria-label={recencyLabels[i]}
+            aria-hidden="true"
           />
         ))}
-        <span>Recent</span>
-      </span>
-      <span className="combined-key frequency-key">
-        <span>Fewer</span>
+        <span>recent</span>
+      </div>
+      <div className="combined-key">
+        <span>Frequency: fewer</span>
         {combinedPalette.map((row, i) => (
           <i
+            className="r2-swatch"
             key={i}
             style={{ background: row[5] }}
             title={frequencyLabels[i]}
+            aria-hidden="true"
           />
         ))}
-        <span>More</span>
-      </span>
-      <details className="legend-details">
-        <summary>Read the colors</summary>
-        <div className="legend-panel">
-          <strong>Recency &amp; frequency, together</strong>
-          <p>
-            Brown to green shows when you last read a verse. Pale to dark shows
-            how often you’ve read it. Date-only readings count calendar days;
-            known times count elapsed hours. Today and the past 24 hours share
-            the freshest color.
-          </p>
-          <p>
-            Small cells and neighboring hues can be difficult to distinguish,
-            especially with color-vision differences. Use the text inspector for
-            exact counts and dates, or choose Recency or Frequency separately.
-          </p>
+        <span>more</span>
+      </div>
+      <details>
+        <summary>View color key</summary>
+        <h3>Recency and frequency, together</h3>
+        <p>
+          Brown to green shows when a verse was last recorded. Pale to dark
+          shows how often. Date-only readings use calendar days; known times use
+          elapsed hours. Counts follow the current journal-view counting rule.
+        </p>
+        <div className="r2-legend-scroll">
           <table>
-            <caption>Recency → · Frequency ↓</caption>
+            <caption>Frequency by recency: 36 color combinations</caption>
             <thead>
               <tr>
-                <th scope="col">Readings</th>
+                <th scope="col">Frequency</th>
                 {[
-                  "365+ d",
-                  "90–364 d",
-                  "30–89 d",
-                  "7–29 d",
-                  "1–6 d",
-                  "Today / <24 h",
-                ].map((label, i) => (
-                  <th key={label} scope="col" title={recencyLabels[i]}>
+                  "365+ days",
+                  "90–364 days",
+                  "30–89 days",
+                  "7–29 days",
+                  "1–6 days",
+                  "Today / within 24h",
+                ].map((label) => (
+                  <th key={label} scope="col">
                     {label}
                   </th>
                 ))}
@@ -92,19 +103,30 @@ export function MetricLegend({ metric }: { metric: string }) {
                     <td
                       key={r}
                       style={{ background: color }}
-                      title={`${frequencyLabels[f]} · ${recencyLabels[r]}`}
-                      aria-label={`${frequencyLabels[f]}, last read ${recencyLabels[r].toLowerCase()}`}
+                      aria-label={`${frequencyLabels[f]}; last recorded ${recencyLabels[r]}`}
                     />
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="never-key">
-            <i style={{ background: palette[0] }} /> No recorded readings
-          </div>
         </div>
+        <p>
+          <i
+            className="r2-swatch"
+            style={{ background: palette[0] }}
+            aria-hidden="true"
+          />{" "}
+          Gray means no qualifying record or date; imported future dates may be
+          gray despite a nonzero count. Inspect for exact filtered and all-time
+          context.
+        </p>
+        <p>
+          Small cells and neighboring hues can be difficult to distinguish. Text
+          view provides the same counts and dates without depending on color.
+          Recency and Frequency can also be viewed separately.
+        </p>
       </details>
-    </div>
+    </section>
   );
 }
