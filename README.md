@@ -212,7 +212,7 @@ Each browser and web address keeps its own reading history. Changing from
 opens a separate reading space. Browser data can also be cleared or removed by
 the browser. Private browsing is unsuitable for keeping a lasting reading history.
 
-**Download source code** opens the
+**App releases & downloads** opens the
 [latest GitHub release](https://github.com/travisseitler/jot-and-tittle/releases/latest),
 where you can download the app's program files.
 These files do not include your personal readings. Use **Export all journals**

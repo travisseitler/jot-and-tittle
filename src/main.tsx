@@ -1214,7 +1214,7 @@ function App() {
                     ? "The passages you’ve read, one reading at a time."
                     : page === "insights"
                       ? "Explore the places you return to and the parts you’ve yet to record."
-                      : "Private by default. Portable whenever you need it."}
+                      : "Back up, restore, and manage readings saved in this browser."}
               </p>
             </div>
             <button className="quiet" onClick={() => setAbout(true)}>
@@ -1953,17 +1953,17 @@ function App() {
               <div className="data-banner">
                 <ShieldCheck size={24} />
                 <div>
-                  <h2>At home on your device.</h2>
+                  <h2>Saved in this browser</h2>
                   <p>
                     Your history stays in this browser on this device. There’s
-                    no account, cloud sync, or reading telemetry.
+                    no account, cloud sync, or tracking of your reading.
                   </p>
                 </div>
               </div>
               <div className="data-grid">
                 <section className="panel data-card">
                   <Download size={25} />
-                  <h2>Personal-data backup</h2>
+                  <h2>Back up all journals</h2>
                   <p role="status" aria-label="Backup status">
                     {backup
                       ? `Most recent export initiated: ${new Date(backup.initiatedAt).toLocaleString()}.`
@@ -1973,11 +1973,13 @@ function App() {
                       : "All current journals and readings match that export."}
                   </p>
                   <p>
-                    Download all {allReadings.length} reading sessions across{" "}
-                    {journals.length} journals as a readable JSON file,
-                    including empty and archived journals, dates, passages, and
-                    notes. View filters do not limit the backup; Trash is
-                    excluded until restored.
+                    Download all {allReadings.length}{" "}
+                    {allReadings.length === 1 ? "reading" : "readings"} across{" "}
+                    {journals.length}{" "}
+                    {journals.length === 1 ? "journal" : "journals"}, with
+                    dates, passages, and notes. Includes empty and archived
+                    journals. View filters do not limit the backup. Trash is
+                    excluded; restore deleted readings before exporting.
                   </p>
                   <button
                     className="primary"
@@ -1988,18 +1990,17 @@ function App() {
                     <Download size={15} />
                   </button>
                   <p>
-                    Initiating a download does not confirm the file was
-                    successfully saved. Check your downloads and keep a copy
-                    somewhere safe. Browser-local storage can be cleared or
-                    evicted.
+                    Downloading does not confirm the file was saved. Check your
+                    Downloads and keep a copy somewhere safe. Browser storage
+                    can be cleared or removed.
                   </p>
                 </section>
                 <section className="panel data-card">
                   <Upload size={25} />
-                  <h2>Bring your readings back</h2>
+                  <h2>Import a backup</h2>
                   <p>
-                    Import a Jot & Tittle export. You’ll review the journals and
-                    readings before merging them. Older backups are imported
+                    Choose a Jot & Tittle JSON backup, then review the journals
+                    and readings before adding them. Older backups are imported
                     into Journal.
                   </p>
                   <button
@@ -2146,7 +2147,7 @@ function App() {
                     className="secondary source-link"
                     href="https://github.com/travisseitler/jot-and-tittle/releases/latest"
                   >
-                    Download source code <Download size={15} />
+                    App releases &amp; downloads <Download size={15} />
                   </a>
                 </div>
               </details>
