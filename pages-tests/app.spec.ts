@@ -30,10 +30,15 @@ test("project-path assets load and the sample map opens", async ({ page }) => {
   for (const asset of assets)
     expect(asset).toMatch(/^\/jot-and-tittle\/app\/assets\//);
   await page
-    .getByRole("button", { name: "Explore a sample map", exact: true })
+    .getByRole("button", { name: "Explore sample data", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Return to my readings", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", {
+      name: /Combined recency and frequency verse map/,
+    }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -50,7 +55,7 @@ test("project-path offline reload preserves saved readings", async ({
   await page.getByLabel("Passage or passages").fill("Psalm 23");
   await page.getByLabel("Notes").fill("Pages offline regression");
   await page.getByRole("button", { name: "Save reading", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".capture-card")).toHaveCount(0);
   const scope = await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
