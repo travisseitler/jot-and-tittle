@@ -2212,6 +2212,11 @@ function App() {
             setZoom={setZoom}
           />
           <p>
+            Combined shows when and how often a verse was recorded. Recency
+            shows when; Frequency shows how often. Flow fits the available
+            width. Fixed keeps 160 columns and may scroll.
+          </p>
+          <p>
             Cell size changes the verse marks. Browser zoom remains available.
             Book and chapter structure appears during inspection.
           </p>
@@ -2245,7 +2250,8 @@ function App() {
               />
             </label>
             <small id="passage-help" className="field-help">
-              Try John 3:16 or Psalm 23.
+              Enter a verse, chapter, or range. Separate passages with
+              semicolons.
             </small>
             <details className="reference-examples">
               <summary>More reference examples</summary>
@@ -3169,22 +3175,26 @@ function App() {
           </p>
           <div className="about-items">
             <p>
-              <strong>One square for every verse.</strong> The map follows
-              canonical order, from Genesis to Revelation, without breaks
-              between books.
+              <strong>One square for every verse.</strong> The map follows Bible
+              order, from Genesis to Revelation, without breaks between books.
             </p>
             <p>
               <strong>Three ways to look.</strong> Combined uses brown-to-green
-              color for recency and pale-to-dark intensity for frequency, like
-              leaves changing over time. Recency and Frequency show each on its
-              own. Gray means no recorded readings. Hover or use arrow keys to
-              reveal a reference and its book.
+              color for when a verse was last recorded and pale-to-dark
+              intensity for how often. Recency and Frequency show each
+              separately. In Recency and Combined, gray means no qualifying
+              record or date in this view; future recorded dates may be gray
+              despite a nonzero count. In Frequency, gray means no records in
+              this view. Inspect for exact counts and dates. Use Verse list for
+              references, counts, dates, and Inspect actions without relying on
+              color. Hover or use arrow keys to reveal a reference and its book.
             </p>
             <p>
-              <strong>Separate journals.</strong> Use Journal for your general
-              reading, or create Sermons, Small Group, Memorization, or any
-              journal you need. Each journal has its own map, history, and
-              patterns.
+              <strong>Separate journals.</strong> Keep different reading
+              contexts in separate journals. View one journal or combine
+              journals with View readings; choose where to save in the reading
+              form. Use Journal for general reading, or create Sermons, Small
+              Group, Memorization, or any journal you need.
             </p>
             <p>
               <strong>Go closer.</strong> Choose a book or chapter, or enter a
@@ -3192,8 +3202,8 @@ function App() {
               history.
             </p>
             <p>
-              <strong>Yours to keep.</strong> Readings stay on your device.
-              Export and import them from Your data.
+              <strong>Yours to keep.</strong> Readings stay in this browser on
+              this device. Export and import backups from Your data.
             </p>
             <p>
               <strong>Made for attention, not achievement.</strong> These marks
