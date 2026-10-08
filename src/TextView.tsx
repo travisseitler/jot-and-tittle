@@ -121,7 +121,7 @@ export function TextView({
       if (first !== undefined) {
         setAnchor(first);
         setStatus(
-          `Found ${reference(first)} in this scope. Zero recorded readings is also a match.`,
+          `Found ${reference(first)} in this scope. Search includes verses with no recorded readings.`,
         );
       } else setStatus("No requested verses are in the current passage scope.");
     } catch (e) {
@@ -138,7 +138,7 @@ export function TextView({
         </span>
         {noted.length > 0 && (
           <details>
-            <summary>View note readings for {reference(id)}</summary>
+            <summary>Readings with notes for {reference(id)}</summary>
             {noted.map((r) => (
               <div key={r.id}>
                 {onReadingSelect ? (
@@ -168,9 +168,12 @@ export function TextView({
     );
   }
   return (
-    <section className="r2-text-view" aria-label="Text verse map">
+    <section className="r2-text-view" aria-label="Verse list">
       <div className="r2-text-heading">
-        <h3>Every verse, in text</h3>
+        <h3>Verse references and reading history</h3>
+        <p>
+          References, counts, dates, and your notes. Bible text is not included.
+        </p>
         <p>
           {rangeLabel(scope)} · {total.toLocaleString()} verses, including
           unrecorded verses. Counts show {frequencyUnit} in your applied journal

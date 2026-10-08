@@ -1364,7 +1364,7 @@ function App() {
                               aria-pressed={presentation === "text"}
                               onClick={() => setPresentation("text")}
                             >
-                              Text view
+                              Verse list
                             </button>
                           </div>
                           <button
@@ -1556,9 +1556,9 @@ function App() {
                       </p>
                       <div className="map-footer">
                         <span>
-                          <span className="dot-square" /> One square, one verse{" "}
-                          <span className="footer-separator">·</span> Inspect a
-                          verse for counts and dates
+                          {presentation === "map"
+                            ? "Each square is a verse. Select a square to inspect its reference, counts, and dates."
+                            : "Select a verse to inspect its counts and dates."}
                         </span>
 
                         <MetricLegend metric={metric} />
@@ -1582,7 +1582,7 @@ function App() {
                                 ranges[0].start > scope.end
                               )
                                 throw new Error(
-                                  "This verse is outside the current passage scope. Use Text view to find it and explicitly change passage scope.",
+                                  "This verse is outside the current passage scope. Use Verse list to find it and explicitly change passage scope.",
                                 );
                               setInspectedVerse(ranges[0].start);
                               inspectVerse(ranges[0].start);
@@ -1663,7 +1663,7 @@ function App() {
                       origin={origin.current}
                       returnLabel={
                         presentation === "text"
-                          ? "Back to Text view"
+                          ? "Back to Verse list"
                           : "Back to map"
                       }
                     >

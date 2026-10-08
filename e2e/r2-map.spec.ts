@@ -13,14 +13,14 @@ async function scopeGenesis(
     .click();
 }
 
-test("Text view includes zeros, paginates without missing verses and retains boundary focus", async ({
+test("Verse list includes zeros, paginates without missing verses and retains boundary focus", async ({
   page,
   isMobile,
 }) => {
   await open(page);
   await log(page, "Genesis 1:2", "First paragraph.\n\nSecond paragraph.");
   await scopeGenesis(page);
-  await page.getByRole("button", { name: "Text view", exact: true }).click();
+  await page.getByRole("button", { name: "Verse list", exact: true }).click();
   const entries = () =>
     isMobile
       ? page.locator(".r2-text-list li h4")
@@ -59,7 +59,7 @@ test("Text view includes zeros, paginates without missing verses and retains bou
     page.getByRole("complementary", { name: "Genesis 1:2", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Back to Text view", exact: true })
+    .getByRole("button", { name: "Back to Verse list", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Inspect Genesis 1:2", exact: true }),
@@ -72,7 +72,7 @@ test("Text find preserves geography and requires an explicit outside scope chang
   await open(page);
   await log(page);
   await scopeGenesis(page, "Genesis 1:1–3");
-  await page.getByRole("button", { name: "Text view", exact: true }).click();
+  await page.getByRole("button", { name: "Verse list", exact: true }).click();
   await page.getByLabel("Find passage").fill("Genesis 1:2–5");
   await page.getByRole("button", { name: "Find passage", exact: true }).click();
   await expect(page.locator(".r2-find-results")).toContainText(

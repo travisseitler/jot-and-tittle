@@ -32,8 +32,8 @@ export function MetricLegend({ metric }: { metric: string }) {
           ))}
         </ul>
         <p>
-          Counts and exact dates are available in Text view and inspection. Gray
-          can also mean a future recorded date in Recency.
+          Counts and exact dates are available in Verse list and inspection.
+          Gray can also mean a future recorded date in Recency.
         </p>
       </section>
     );

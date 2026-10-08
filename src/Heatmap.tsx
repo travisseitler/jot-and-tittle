@@ -235,7 +235,7 @@ export function Heatmap({
         <p id={instructions} className="r2-map-instructions">
           Arrow keys explore verses. Home and End move to row edges; Ctrl+Home
           and Ctrl+End reach the scope edges. Enter inspects. You can also use
-          Text view or the reference controls.
+          Verse list or the reference controls.
         </p>
       </details>
       <div
@@ -351,7 +351,7 @@ export function Heatmap({
           </>
         ) : (
           <span>
-            Explore a verse or use Text view for exact counts and dates.
+            Explore a verse or use Verse list for exact counts and dates.
           </span>
         )}
         <div className="r2-map-actions">
