@@ -1,3 +1,5 @@
+import { HistoryView } from "./HistoryView";
+import { PatternsView } from "./PatternsView";
 import { CaptureSurface, DetailSurface } from "./DetailSurface";
 import { TextView } from "./TextView";
 import { ReadingDetail } from "./ReadingDetail";
@@ -27,9 +29,7 @@ import {
   Pencil,
   Trash2,
   Info,
-  CalendarDays,
   Leaf,
-  Layers,
   Clock3,
 } from "lucide-react";
 import {
@@ -511,18 +511,7 @@ function App() {
   );
   const viewed = stats.slice(scope.start, scope.end + 1),
     covered = viewed.filter((s) => s.count).length,
-    total = viewed.length,
-    bookStats = useMemo(
-      () =>
-        books.map((b) => ({
-          ...b,
-          read: stats.slice(b.start, b.end + 1).filter((s) => s.count).length,
-          visits: stats
-            .slice(b.start, b.end + 1)
-            .reduce((a, s) => a + s.count, 0),
-        })),
-      [stats],
-    );
+    total = viewed.length;
   const parsed = useMemo(() => {
     try {
       return { ranges: parsePassage(input), error: "" };
@@ -1888,178 +1877,32 @@ function App() {
               className={`detail-layout ${readingDetail ? "has-detail" : ""}`}
             >
               <div className="detail-main">
-                <section className="panel">
-                  <div className="section-title">
-                    <h2>{active.length} reading sessions</h2>
-                    <span className="muted">
-                      {historyQuery &&
-                        `${sorted.filter((r) => (r.originalInput + " " + r.notes + " " + r.ranges.map(rangeLabel).join(" ") + " " + readingDate(r.startedAt) + " " + formatDate(r.startedAt)).toLowerCase().includes(historyQuery.toLowerCase())).length} search results`}
-                    </span>
-                    <div className="history-search">
-                      <Search size={15} />
-                      <input
-                        aria-label="Search reading history"
-                        value={historyQuery}
-                        onChange={(e) => setHistoryQuery(e.target.value)}
-                        placeholder="Search dates, passages or notes"
-                      />
-                    </div>
-                  </div>
-                  {sorted
-                    .filter((r) =>
-                      (
-                        r.originalInput +
-                        " " +
-                        r.notes +
-                        " " +
-                        r.ranges.map(rangeLabel).join(" ") +
-                        " " +
-                        readingDate(r.startedAt) +
-                        " " +
-                        formatDate(r.startedAt)
-                      )
-                        .toLowerCase()
-                        .includes(historyQuery.toLowerCase()),
-                    )
-                    .map((r, index, rows) => (
-                      <React.Fragment key={r.id}>
-                        {(index === 0 ||
-                          readingDate(rows[index - 1].startedAt) !==
-                            readingDate(r.startedAt)) && (
-                          <h3 className="history-day-heading">
-                            {formatDate(r.startedAt)}
-                          </h3>
-                        )}
-                        <div className="history-row" key={r.id}>
-                          <button
-                            className="history-date"
-                            onClick={() => inspectReading(r)}
-                          >
-                            <CalendarDays size={16} />
-                            {formatDate(r.startedAt)}
-                          </button>
-                          <div className="history-passage">
-                            <span>
-                              {sample
-                                ? "Example data"
-                                : journals.find((j) => j.id === r.journalId)
-                                    ?.name}
-                            </span>
-                            <button
-                              className="reading-title"
-                              onClick={() => inspectReading(r)}
-                            >
-                              {r.ranges.map(rangeLabel).join("; ")}
-                            </button>
-                            <small>
-                              {pretty(rangeCount(r.ranges))} unique verses
-                              {r.notes && ` · ${r.notes}`}
-                            </small>
-                          </div>
-                          {!sample &&
-                            !readOnly &&
-                            !journals.find((j) => j.id === r.journalId)
-                              ?.archived && (
-                              <details className="reading-actions">
-                                <summary>More actions</summary>
-                                <button
-                                  className="icon-btn"
-                                  disabled={
-                                    sample ||
-                                    readOnly ||
-                                    !!journals.find((j) => j.id === r.journalId)
-                                      ?.archived
-                                  }
-                                  aria-label={`Move ${r.originalInput}`}
-                                  onClick={() => {
-                                    setTransferMode("move");
-                                    setTransfer(r);
-                                    setDestination("");
-                                    setTransferError("");
-                                  }}
-                                >
-                                  <ArrowRight size={16} /> Move
-                                </button>
-                                <button
-                                  className="icon-btn"
-                                  disabled={
-                                    sample ||
-                                    readOnly ||
-                                    !!journals.find((j) => j.id === r.journalId)
-                                      ?.archived
-                                  }
-                                  aria-label={`Copy ${r.originalInput}`}
-                                  onClick={() => {
-                                    setTransferMode("copy");
-                                    setCopyId(crypto.randomUUID());
-                                    setTransfer(r);
-                                    setDestination("");
-                                    setTransferError("");
-                                  }}
-                                >
-                                  <Layers size={16} /> Copy
-                                </button>
-
-                                <button
-                                  className="icon-btn"
-                                  disabled={
-                                    sample ||
-                                    readOnly ||
-                                    !!journals.find((j) => j.id === r.journalId)
-                                      ?.archived
-                                  }
-                                  aria-label={`Delete ${r.originalInput}`}
-                                  onClick={() => setConfirmDelete(r)}
-                                >
-                                  <Trash2 size={16} /> Delete
-                                </button>
-                              </details>
-                            )}
-                        </div>
-                      </React.Fragment>
-                    ))}
-                  {!sorted.length && (
-                    <div className="large-empty">
-                      <BookOpen size={32} />
-                      <h3>
-                        {readings.length || sample
-                          ? "No readings in this view."
-                          : "A reading history starts with one passage."}
-                      </h3>
-                      <p>
-                        {readings.length || sample
-                          ? "Change View readings or Reset view to see more of your history."
-                          : "Log a chapter, a few verses, or several passages together."}
-                      </p>
-                      <button className="primary" onClick={() => openLog()}>
-                        <Plus size={16} /> Log a reading
-                      </button>
-                    </div>
-                  )}
-                  {sorted.length > 0 &&
-                    !sorted.some((r) =>
-                      (
-                        r.originalInput +
-                        " " +
-                        r.notes +
-                        " " +
-                        r.ranges.map(rangeLabel).join(" ") +
-                        " " +
-                        readingDate(r.startedAt) +
-                        " " +
-                        formatDate(r.startedAt)
-                      )
-                        .toLowerCase()
-                        .includes(historyQuery.toLowerCase()),
-                    ) && (
-                      <p className="muted">
-                        No readings match your search.{" "}
-                        <button onClick={() => setHistoryQuery("")}>
-                          Clear search
-                        </button>
-                      </p>
-                    )}
-                </section>
+                <HistoryView
+                  sorted={sorted}
+                  sessionCount={active.length}
+                  hasReadings={!!readings.length}
+                  sample={sample}
+                  readOnly={readOnly}
+                  journals={journals}
+                  query={historyQuery}
+                  onQueryChange={setHistoryQuery}
+                  onInspectReading={inspectReading}
+                  onMoveReading={(r) => {
+                    setTransferMode("move");
+                    setTransfer(r);
+                    setDestination("");
+                    setTransferError("");
+                  }}
+                  onCopyReading={(r) => {
+                    setTransferMode("copy");
+                    setCopyId(crypto.randomUUID());
+                    setTransfer(r);
+                    setDestination("");
+                    setTransferError("");
+                  }}
+                  onDeleteReading={setConfirmDelete}
+                  onLogReading={() => openLog()}
+                />
               </div>{" "}
               {readingDetail && (
                 <ReadingDetail
@@ -2092,123 +1935,26 @@ function App() {
             </div>
           )}
           {page === "insights" && (
-            <>
-              <section className="pattern-overview">
-                <h2>Where does your reading take you?</h2>
-                <p>
-                  {active.length
-                    ? `You’ve recorded ${active.length} reading sessions across ${bookStats.filter((b) => b.read).length} books. ${stats.filter((v) => v.count > 1).length} verses appear in more than one session.`
-                    : "Patterns emerge as you record readings. Start with a passage, then return here to explore."}
-                </p>
-              </section>
-              <p className="counting-rule">
-                {!archivedViewId && journalScopeMode !== "single" && !sample
-                  ? "Frequencies deduplicate shared encounters; session totals count reading records."
-                  : "Frequencies count reading records in this journal."}{" "}
-                Map geography does not limit Patterns.
-              </p>
-              <section className="stats-row">
-                <div className="stat">
-                  <div>UNIQUE VERSES</div>
-                  <strong>{pretty(stats.filter((s) => s.count).length)}</strong>
-                  <span>Verses with at least one recorded reading</span>
-                </div>
-                <div className="stat">
-                  <div>REVISITED VERSES</div>
-                  <strong>
-                    {pretty(stats.filter((s) => s.count > 1).length)}
-                  </strong>
-                  <span>Verses with frequency greater than one</span>
-                </div>
-                <div className="stat">
-                  <div>VERSE READINGS</div>
-                  <strong>
-                    {pretty(stats.reduce((a, s) => a + s.count, 0))}
-                  </strong>
-                  <span>Sum of verse frequencies in this evidence view</span>
-                </div>
-              </section>
-              <section className="panel">
-                <div className="section-title">
-                  <h2>Where have you been reading?</h2>
-                  <span className="muted">
-                    Unique verses recorded · canonical order
-                  </span>
-                </div>
-                <details className="book-breakdown">
-                  <summary>Explore all 66 books</summary>
-                  <div className="book-grid">
-                    {bookStats.map((b) => (
-                      <button
-                        className="book-stat"
-                        key={b.index}
-                        onClick={() => {
-                          setBook(String(b.index));
-                          setChapter("all");
-                          setScopeRange(null);
-                          setPage("map");
-                        }}
-                      >
-                        <div>
-                          <strong>{b.name}</strong>
-                          <span>
-                            {b.read
-                              ? `${((b.read / (b.end - b.start + 1)) * 100).toFixed(1)}%`
-                              : "0%"}
-                          </span>
-                        </div>
-                        <div className="progress">
-                          <i
-                            style={{
-                              width: `${(b.read / (b.end - b.start + 1)) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <small>
-                          {pretty(b.read)} of {pretty(b.end - b.start + 1)}{" "}
-                          verses
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              </section>
-              <section className="panel return-panel">
-                <h2>Places you return to</h2>
-                <p className="muted">
-                  The ten most frequently recorded verses. Ties follow canonical
-                  order.
-                </p>
-                {stats
-                  .map((s, i) => ({ ...s, i }))
-                  .filter((s) => s.count > 1)
-                  .sort((a, b) => b.count - a.count || a.i - b.i)
-                  .slice(0, 10)
-                  .map((s) => (
-                    <button
-                      className="return-row"
-                      key={s.i}
-                      onClick={() => {
-                        setScopeRange(null);
-                        setBook("all");
-                        setChapter("all");
-                        setPage("map");
-                        inspectVerse(s.i);
-                      }}
-                    >
-                      <span>{reference(s.i)}</span>
-                      <span>
-                        {s.count} readings <ChevronRight size={14} />
-                      </span>
-                    </button>
-                  ))}
-                {!stats.some((s) => s.count > 1) && (
-                  <p className="muted">
-                    Repeated readings will appear here as your history grows.
-                  </p>
-                )}
-              </section>
-            </>
+            <PatternsView
+              stats={stats}
+              sessionCount={active.length}
+              deduplicatesEncounters={
+                !archivedViewId && journalScopeMode !== "single" && !sample
+              }
+              onExploreBook={(bookIndex) => {
+                setBook(String(bookIndex));
+                setChapter("all");
+                setScopeRange(null);
+                setPage("map");
+              }}
+              onInspectVerse={(verseId) => {
+                setScopeRange(null);
+                setBook("all");
+                setChapter("all");
+                setPage("map");
+                inspectVerse(verseId);
+              }}
+            />
           )}
           {page === "data" && (
             <>

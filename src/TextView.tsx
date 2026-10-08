@@ -8,6 +8,13 @@ import {
   type Stats,
 } from "./domain";
 import type { Journal, JournalReading } from "./journals";
+import {
+  passageVerseIds,
+  passagesInScope,
+  passagesOutsideScope,
+  textPage,
+  textPageDestination,
+} from "./textViewModel";
 import "./map-design.css";
 
 export type TextViewProps = {
@@ -44,15 +51,12 @@ export function TextView({
     [searched, setSearched] = useState(false),
     [status, setStatus] = useState("");
   const errorId = useId(),
-    pageSize = phone ? 4 : 12,
-    total = scope.end - scope.start + 1;
-  const page = Math.floor(
-    (Math.max(scope.start, Math.min(scope.end, anchor)) - scope.start) /
-      pageSize,
+    pageSize = phone ? 4 : 12;
+  const { page, total, start, end, lastPage } = textPage(
+    scope,
+    anchor,
+    pageSize,
   );
-  const start = scope.start + page * pageSize,
-    end = Math.min(scope.end, start + pageSize - 1),
-    lastPage = Math.ceil(total / pageSize) - 1;
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     const update = () => setPhone(media.matches);
@@ -68,30 +72,11 @@ export function TextView({
     setMatchIndex(0);
   }, [scope.start, scope.end]);
   const clipped = useMemo(
-    () =>
-      found
-        .map((r) => ({
-          start: Math.max(r.start, scope.start),
-          end: Math.min(r.end, scope.end),
-        }))
-        .filter((r) => r.start <= r.end),
+    () => passagesInScope(found, scope),
     [found, scope.start, scope.end],
   );
-  const matches = useMemo(
-    () =>
-      clipped.flatMap((r) =>
-        Array.from({ length: r.end - r.start + 1 }, (_, i) => r.start + i),
-      ),
-    [clipped],
-  );
-  const omitted = found.flatMap((r) => {
-    const parts: Range[] = [];
-    if (r.start < scope.start)
-      parts.push({ start: r.start, end: Math.min(r.end, scope.start - 1) });
-    if (r.end > scope.end)
-      parts.push({ start: Math.max(r.start, scope.end + 1), end: r.end });
-    return parts;
-  });
+  const matches = useMemo(() => passageVerseIds(clipped), [clipped]);
+  const omitted = passagesOutsideScope(found, scope);
   const selected = matches[matchIndex];
   const records = (id: number) =>
     readings.filter((r) => r.ranges.some((q) => id >= q.start && id <= q.end));
@@ -114,8 +99,12 @@ export function TextView({
     );
   }
   function pageTo(value: number) {
-    const bounded = Math.max(0, Math.min(lastPage, value));
-    setAnchor(scope.start + bounded * pageSize);
+    const { anchor: nextAnchor, page: bounded } = textPageDestination(
+      scope,
+      value,
+      pageSize,
+    );
+    setAnchor(nextAnchor);
     setStatus(
       `Showing verses ${bounded * pageSize + 1}–${Math.min(total, (bounded + 1) * pageSize)} of ${total}.`,
     );
@@ -128,9 +117,7 @@ export function TextView({
       setSearched(true);
       setError("");
       setMatchIndex(0);
-      const first = ranges
-        .map((r) => Math.max(r.start, scope.start))
-        .find((id, i) => id <= Math.min(ranges[i].end, scope.end));
+      const first = passagesInScope(ranges, scope)[0]?.start;
       if (first !== undefined) {
         setAnchor(first);
         setStatus(
@@ -141,7 +128,7 @@ export function TextView({
       setError((e as Error).message);
     }
   }
-  const ids = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  const ids = passageVerseIds([{ start, end }]);
   function noteAccess(id: number) {
     const noted = records(id).filter((r) => r.notes.trim());
     return (
