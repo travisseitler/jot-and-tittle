@@ -1335,7 +1335,7 @@ function App() {
                     <dd className="summary-date">
                       {sorted[0]
                         ? formatDate(sorted[0].startedAt)
-                        : "No readings yet"}
+                        : "No readings in this view"}
                     </dd>
                   </div>
                 </dl>
@@ -1823,9 +1823,21 @@ function App() {
                     ) : (
                       <div className="empty-recent">
                         <BookOpen size={22} />
-                        <p>Your readings will appear here.</p>
-                        <button onClick={() => openLog()}>
-                          Record your first passage <ArrowRight size={14} />
+                        <p>
+                          {readOnly
+                            ? "No readings from this archived journal appear in this view. Return to active journal to view your current readings."
+                            : allReadings.length > 0 || sample
+                              ? "No readings in this view. Choose View readings to change journals or dates."
+                              : "Your readings will appear here."}
+                        </p>
+                        <button
+                          onClick={() => openLog()}
+                          disabled={!storageReady || readOnly}
+                        >
+                          {allReadings.length > 0 || sample || readOnly
+                            ? "Log a reading"
+                            : "Log your first reading"}{" "}
+                          <ArrowRight size={14} />
                         </button>
                       </div>
                     )}
@@ -1857,7 +1869,7 @@ function App() {
                 <HistoryView
                   sorted={sorted}
                   sessionCount={active.length}
-                  hasReadings={!!readings.length}
+                  hasReadings={allReadings.length > 0}
                   sample={sample}
                   readOnly={readOnly}
                   journals={journals}

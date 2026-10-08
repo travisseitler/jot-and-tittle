@@ -30,6 +30,12 @@ test("aggregate scope combines records without changing logging destination", as
   await expect(
     page.getByText("No journals selected", { exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".large-empty h3")).toHaveText(
+    "No readings in this view.",
+  );
+  await expect(page.locator(".large-empty")).toContainText(
+    "Choose View readings",
+  );
   await edit();
   await page.getByRole("checkbox", { name: "Sermons", exact: true }).check();
   await apply();

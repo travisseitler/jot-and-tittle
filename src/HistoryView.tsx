@@ -69,7 +69,9 @@ export function HistoryView({
   return (
     <section className="panel">
       <div className="section-title">
-        <h2>{sessionCount} reading sessions</h2>
+        <h2>
+          {sessionCount} reading {sessionCount === 1 ? "session" : "sessions"}
+        </h2>
         <span className="muted">
           {query && `${matchingReadings.length} search results`}
         </span>
@@ -166,16 +168,24 @@ export function HistoryView({
         <div className="large-empty">
           <BookOpen size={32} />
           <h3>
-            {hasReadings || sample
+            {hasReadings || sample || readOnly
               ? "No readings in this view."
               : "A reading history starts with one passage."}
           </h3>
           <p>
-            {hasReadings || sample
-              ? "Change View readings or Reset view to see more of your history."
-              : "Log a chapter, a few verses, or several passages together."}
+            {readOnly
+              ? "No readings from this archived journal appear in this view. Return to active journal to view your current readings."
+              : hasReadings || sample
+                ? "Choose View readings to change journals or dates."
+                : "Log a chapter, a few verses, or several passages together."}
           </p>
-          <button className="primary" onClick={() => onLogReading()}>
+          <button
+            className={
+              hasReadings || sample || readOnly ? "secondary" : "primary"
+            }
+            disabled={readOnly}
+            onClick={() => onLogReading()}
+          >
             <Plus size={16} /> Log a reading
           </button>
         </div>
